@@ -3,7 +3,7 @@ import subprocess
 import threading
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QFileDialog,
-    QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox
+    QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox, QProgressBar
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -44,6 +44,13 @@ class ASCMHLGui(QWidget):
 
         # Add tabs to the layout
         layout.addWidget(self.tabs)
+
+        # Add a centered and always visible status bar
+        self.status_bar = QProgressBar()
+        self.status_bar.setRange(0, 0)  # Indeterminate mode
+        self.status_bar.setAlignment(Qt.AlignCenter)
+        self.status_bar.setVisible(False)  # Initially hidden
+        layout.addWidget(self.status_bar)
 
         self.setLayout(layout)
 
@@ -224,6 +231,7 @@ class ASCMHLGui(QWidget):
 
         def run_command():
             try:
+                self.status_bar.setVisible(True)  # Show the status bar during processing
                 self.process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
@@ -262,6 +270,7 @@ class ASCMHLGui(QWidget):
                 self.info_tab.setDisabled(False)
                 self.detect_renaming_checkbox.setEnabled(True)
                 self.no_directory_hashes_checkbox.setEnabled(True)
+                self.status_bar.setVisible(False)  # Hide the status bar after processing
 
                 # Display the arguments used for the job
                 args_used = "<b>Arguments Used:</b><br>"
@@ -294,6 +303,7 @@ class ASCMHLGui(QWidget):
             self.process = None
             self.abort_btn.setEnabled(False)  # Disable Abort button
             self.exit_btn.setEnabled(True)
+            self.status_bar.setVisible(False)  # Hide the status bar
 
     def update_no_directory_hashes_label(self):
         if self.no_directory_hashes_checkbox.isChecked():
