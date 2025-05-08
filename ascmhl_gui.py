@@ -26,16 +26,16 @@ class ASCMHLGui(QWidget):
             self.update_status("✅ ascmhl is available.", success=True)
 
     def init_ui(self):
+        # Initialize the GUI layout
         layout = QVBoxLayout()
 
-        # Create a tab widget
+        # Create a tab widget for organizing tabs
         self.tabs = QTabWidget()
 
         # Main tab
         self.main_tab = QWidget()
         self.init_main_tab()
-        self.tabs.addTab(self.main_tab, "Main")
-        self.tabs.setTabText(self.tabs.indexOf(self.main_tab), "Create")
+        self.tabs.addTab(self.main_tab, "Create")
 
         # Info tab
         self.info_tab = QWidget()
@@ -47,25 +47,31 @@ class ASCMHLGui(QWidget):
         self.init_log_tab()
         self.tabs.addTab(self.log_tab, "Logs")
 
-        # Add tabs to the layout
+        # Add tabs to the main layout
         layout.addWidget(self.tabs)
 
-        # Add a centered and always visible status bar
+        # Add a progress bar for activity indication
         self.status_bar = QProgressBar()
         self.status_bar.setRange(0, 0)  # Indeterminate mode
         self.status_bar.setAlignment(Qt.AlignCenter)
         self.status_bar.setVisible(False)  # Initially hidden
         layout.addWidget(self.status_bar)
 
+        # Set the main layout for the GUI
         self.setLayout(layout)
 
-        # State
+        # Initialize state variables
         self.media_folder = ""
         self.output_folder = ""
         self.process = None  # Track the running process
 
     def init_main_tab(self):
         layout = QVBoxLayout()
+
+        # ASC MHL Creator GUI version display
+        self.version_label = QLabel("ASC MHL Creator GUI Version: 1.0")
+        self.version_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.version_label)
 
         # ASC MHL version display
         self.version_label = QLabel("ASC MHL Version: Unknown")
