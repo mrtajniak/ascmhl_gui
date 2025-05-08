@@ -1,2 +1,7 @@
 # Exclude all executable files
 *.exe
+
+# Ignore PyInstaller build files
+build/
+dist/
+*.spec
