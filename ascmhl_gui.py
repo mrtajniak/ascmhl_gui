@@ -11,7 +11,7 @@ from PyQt5.QtGui import QFont
 class ASCMHLGui(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("ASC MHL Creator GUI")
+        self.setWindowTitle("ASCMHL Creator GUI")
         self.resize(600, 400)
         self.init_ui()
 
@@ -35,8 +35,13 @@ class ASCMHLGui(QWidget):
         self.hash_combo.setCurrentText("xxh64")
 
         # Run button
-        self.run_btn = QPushButton("Create ASC MHL")
+        self.run_btn = QPushButton("Create MHL generation")
         self.run_btn.clicked.connect(self.run_ascmhl)
+
+        # Abort button
+        self.abort_btn = QPushButton("Abort")
+        self.abort_btn.setEnabled(False)
+        self.abort_btn.clicked.connect(self.abort_ascmhl)
 
         # Exit button
         self.exit_btn = QPushButton("Exit")
@@ -63,6 +68,7 @@ class ASCMHLGui(QWidget):
         layout.addWidget(self.hash_combo)
 
         layout.addWidget(self.run_btn)
+        layout.addWidget(self.abort_btn)  # Add Abort button to the layout
         layout.addWidget(QLabel("Output Log:"))
         layout.addWidget(self.log)
 
@@ -75,6 +81,7 @@ class ASCMHLGui(QWidget):
         # State
         self.media_folder = ""
         self.output_folder = ""
+        self.process = None  # Track the running process
 
     def is_ascmhl_available(self):
         try:
@@ -118,24 +125,25 @@ class ASCMHLGui(QWidget):
         self.log.append(f"\n🔧 Running: {' '.join(cmd)}\n")
         self.update_status("🔧 Running MHL creation...", success=None)
         self.exit_btn.setEnabled(False)
+        self.abort_btn.setEnabled(True)  # Enable Abort button
 
         def run_command():
             try:
-                process = subprocess.Popen(
+                self.process = subprocess.Popen(
                     cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     text=True
                 )
 
-                for line in process.stdout:
+                for line in self.process.stdout:
                     self.log.append(line.strip())
                     self.log.moveCursor(self.log.textCursor().End)
                     self.log.ensureCursorVisible()
                     QApplication.processEvents()
 
-                process.wait()
-                if process.returncode == 0:
+                self.process.wait()
+                if self.process.returncode == 0:
                     self.log.append("✅ MHL creation complete.")
                     self.update_status("✅ MHL creation complete.", success=True)
                 else:
@@ -149,7 +157,9 @@ class ASCMHLGui(QWidget):
                 self.log.append(f"❌ Error: {str(e)}")
                 self.update_status(f"❌ Error: {str(e)}", success=False)
             finally:
+                self.process = None
                 self.exit_btn.setEnabled(True)
+                self.abort_btn.setEnabled(False)  # Disable Abort button
 
         # Run the command in a separate thread to keep the UI responsive
         threading.Thread(target=run_command, daemon=True).start()
@@ -160,6 +170,15 @@ class ASCMHLGui(QWidget):
 
         # Ensure the scroll bar follows the text in the output log
         self.log.verticalScrollBar().setValue(self.log.verticalScrollBar().maximum())
+
+    def abort_ascmhl(self):
+        if self.process and self.process.poll() is None:  # Check if the process is running
+            self.process.terminate()
+            self.log.append("⚠️ MHL creation aborted.")
+            self.update_status("⚠️ MHL creation aborted.", success="caution")
+            self.process = None
+            self.abort_btn.setEnabled(False)  # Disable Abort button
+            self.exit_btn.setEnabled(True)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
