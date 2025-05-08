@@ -207,17 +207,26 @@ class ASCMHLGui(QWidget):
         if self.no_directory_hashes_checkbox.isChecked():
             cmd.append("--no_directory_hashes")  # Ensure the argument is added when the checkbox is checked
 
-        # Add optional info arguments
-        if self.location_input.text():
-            cmd.extend(["--location", self.location_input.text()])
-        if self.name_input.text():
-            cmd.extend(["--author_name", self.name_input.text()])
-        if self.email_input.text():
-            cmd.extend(["--author_email", self.email_input.text()])
-        if self.phone_input.text():
-            cmd.extend(["--author_phone", self.phone_input.text()])
-        if self.role_input.text():
-            cmd.extend(["--author_role", self.role_input.text()])
+        # Adjust input fields to avoid double wrapping in quotes
+        def get_safe_input(input_field):
+            return input_field.text().strip() if input_field.text().strip() else None
+
+        location = get_safe_input(self.location_input)
+        name = get_safe_input(self.name_input)
+        email = get_safe_input(self.email_input)
+        phone = get_safe_input(self.phone_input)
+        role = get_safe_input(self.role_input)
+
+        if location:
+            cmd.extend(["--location", location])
+        if name:
+            cmd.extend(["--author_name", name])
+        if email:
+            cmd.extend(["--author_email", email])
+        if phone:
+            cmd.extend(["--author_phone", phone])
+        if role:
+            cmd.extend(["--author_role", role])
 
         self.log.append(f"\n🔧 Running: {' '.join(cmd)}\n")
         self.update_status("🔧 Running MHL creation...", success=None)
@@ -280,16 +289,16 @@ class ASCMHLGui(QWidget):
                     args_used += "<span style='color: orange;'>Detect Renaming:</span> Enabled<br>"
                 if self.no_directory_hashes_checkbox.isChecked():
                     args_used += "<span style='color: orange;'>Skip Directory Hashes:</span> Enabled<br>"
-                if self.location_input.text():
-                    args_used += f"<span style='color: purple;'>Location:</span> {self.location_input.text()}<br>"
-                if self.name_input.text():
-                    args_used += f"<span style='color: purple;'>Name:</span> {self.name_input.text()}<br>"
-                if self.email_input.text():
-                    args_used += f"<span style='color: purple;'>Email:</span> {self.email_input.text()}<br>"
-                if self.phone_input.text():
-                    args_used += f"<span style='color: purple;'>Phone:</span> {self.phone_input.text()}<br>"
-                if self.role_input.text():
-                    args_used += f"<span style='color: purple;'>Role:</span> {self.role_input.text()}<br>"
+                if location:
+                    args_used += f"<span style='color: purple;'>Location:</span> {location}<br>"
+                if name:
+                    args_used += f"<span style='color: purple;'>Name:</span> {name}<br>"
+                if email:
+                    args_used += f"<span style='color: purple;'>Email:</span> {email}<br>"
+                if phone:
+                    args_used += f"<span style='color: purple;'>Phone:</span> {phone}<br>"
+                if role:
+                    args_used += f"<span style='color: purple;'>Role:</span> {role}<br>"
 
                 self.log.append(args_used)
 
