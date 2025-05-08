@@ -1,4 +1,4 @@
-# ascmhl_gui
+# ASC MHL Creator GUI
 ## Requierments
 1. Python 3.13 or later
 2. ASCMHL from [HERE](https://github.com/ascmitc/mhl)
