@@ -47,6 +47,51 @@ class ASCMHLGui(QWidget):
         self.init_log_tab()
         self.tabs.addTab(self.log_tab, "Logs")
 
+        # Add a Version tab
+        self.version_tab = QWidget()
+        version_layout = QVBoxLayout()
+
+        # Add ASC MHL Creator GUI version
+        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.0")
+        gui_version_label.setAlignment(Qt.AlignLeft)
+        gui_version_label.setFont(QFont("Arial", 8))
+        version_layout.addWidget(gui_version_label)
+
+        # Add ASC MHL version
+        self.mhl_version_label = QLabel("ASC MHL Version: Unknown")
+        self.mhl_version_label.setAlignment(Qt.AlignLeft)
+        self.mhl_version_label.setFont(QFont("Arial", 8))
+        version_layout.addWidget(self.mhl_version_label)
+
+        # Add LICENSE content
+        license_content = QTextEdit()
+        license_content.setReadOnly(True)
+        license_content.setText("""MIT License
+
+Copyright (c) 2025 Krystian
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the \"Software\"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.""")
+        version_layout.addWidget(license_content)
+
+        self.version_tab.setLayout(version_layout)
+        self.tabs.addTab(self.version_tab, "Version")
+
         # Add tabs to the main layout
         layout.addWidget(self.tabs)
 
@@ -67,16 +112,6 @@ class ASCMHLGui(QWidget):
 
     def init_main_tab(self):
         layout = QVBoxLayout()
-
-        # ASC MHL Creator GUI version display
-        self.version_label = QLabel("ASC MHL Creator GUI Version: 1.0")
-        self.version_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.version_label)
-
-        # ASC MHL version display
-        self.version_label = QLabel("ASC MHL Version: Unknown")
-        self.version_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.version_label)
 
         # Folder selection
         folder_layout = QHBoxLayout()
@@ -191,10 +226,10 @@ class ASCMHLGui(QWidget):
         try:
             result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
             version = result.stdout.strip()
-            self.version_label.setText(f"{version}")
+            self.mhl_version_label.setText(f"ASC MHL Version: {version}")
             return result.returncode == 0
         except (FileNotFoundError, subprocess.CalledProcessError):
-            self.version_label.setText("ASCMHL Not Found")
+            self.mhl_version_label.setText("ASC MHL Version: Not Found")
             return False
 
     def update_status(self, message, success=None):
