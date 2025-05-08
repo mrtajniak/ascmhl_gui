@@ -24,6 +24,11 @@ class ASCMHLGui(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # ASC MHL version display
+        self.version_label = QLabel("ASC MHL Version: Unknown")
+        self.version_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.version_label)
+
         # Folder selection
         self.folder_label = QLabel("No folder selected.")
         self.folder_btn = QPushButton("Select Media Folder")
@@ -85,9 +90,12 @@ class ASCMHLGui(QWidget):
 
     def is_ascmhl_available(self):
         try:
-            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            version = result.stdout.strip()
+            self.version_label.setText(f"{version}")
             return result.returncode == 0
         except (FileNotFoundError, subprocess.CalledProcessError):
+            self.version_label.setText("ASC MHL Version: Not Found")
             return False
 
     def update_status(self, message, success=None):
