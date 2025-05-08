@@ -12,12 +12,12 @@ class ASCMHLGui(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ASC MHL Creator GUI")
-        # Adjust the initial window size to make it less wide
-        self.resize(500, 400)
+        # Adjust the initial window size to make it even less wide
+        self.resize(600, 320)  # Set a fixed width and height for the window
         self.init_ui()
 
-        # Fit the window size to the contents of the 'Create' tab and lock resizing
-        self.setFixedSize(self.sizeHint())
+        # Lock the window size to prevent resizing
+        self.setFixedSize(self.size())
 
         # Check if 'ascmhl' is available
         if not self.is_ascmhl_available():
