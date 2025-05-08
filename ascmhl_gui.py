@@ -3,7 +3,7 @@ import subprocess
 import threading
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QFileDialog,
-    QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox
+    QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox
 )
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
@@ -24,62 +24,26 @@ class ASCMHLGui(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # ASC MHL version display
-        self.version_label = QLabel("ASC MHL Version: Unknown")
-        self.version_label.setAlignment(Qt.AlignRight)
-        layout.addWidget(self.version_label)
+        # Create a tab widget
+        self.tabs = QTabWidget()
 
-        # Folder selection
-        self.folder_label = QLabel("No folder selected.")
-        self.folder_btn = QPushButton("Select Media Folder")
-        self.folder_btn.clicked.connect(self.select_folder)
+        # Main tab
+        self.main_tab = QWidget()
+        self.init_main_tab()
+        self.tabs.addTab(self.main_tab, "Main")
 
-        # Hash algorithm selection
-        self.hash_combo = QComboBox()
-        self.hash_combo.addItems(["md5", "sha1", "sha256", "xxh64", "xxh3", "c4"])
-        self.hash_combo.setCurrentText("xxh64")
+        # Info tab
+        self.info_tab = QWidget()
+        self.init_info_tab()
+        self.tabs.addTab(self.info_tab, "Info")
 
-        # Run button
-        self.run_btn = QPushButton("Create MHL generation")
-        self.run_btn.clicked.connect(self.run_ascmhl)
+        # Log tab
+        self.log_tab = QWidget()
+        self.init_log_tab()
+        self.tabs.addTab(self.log_tab, "Logs")
 
-        # Abort button
-        self.abort_btn = QPushButton("Abort")
-        self.abort_btn.setEnabled(False)
-        self.abort_btn.clicked.connect(self.abort_ascmhl)
-
-        # Exit button
-        self.exit_btn = QPushButton("Exit")
-        self.exit_btn.clicked.connect(self.close)
-        self.exit_btn.setEnabled(True)
-
-        # Log output
-        self.log = QTextEdit()
-        self.log.setReadOnly(True)
-
-        # Status display
-        self.status_label = QLabel()
-        self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setFont(QFont("Arial", 16, QFont.Bold))
-        self.status_label.setStyleSheet("color: red;")
-        self.status_label.setText("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.")
-
-        # Layout
-        layout.addWidget(QLabel("Media Folder:"))
-        layout.addWidget(self.folder_label)
-        layout.addWidget(self.folder_btn)
-
-        layout.addWidget(QLabel("Hash Algorithm:"))
-        layout.addWidget(self.hash_combo)
-
-        layout.addWidget(self.run_btn)
-        layout.addWidget(self.abort_btn)  # Add Abort button to the layout
-        layout.addWidget(QLabel("Output Log:"))
-        layout.addWidget(self.log)
-
-        layout.addWidget(QLabel("Status:"))
-        layout.addWidget(self.status_label)
-        layout.addWidget(self.exit_btn)
+        # Add tabs to the layout
+        layout.addWidget(self.tabs)
 
         self.setLayout(layout)
 
@@ -87,6 +51,103 @@ class ASCMHLGui(QWidget):
         self.media_folder = ""
         self.output_folder = ""
         self.process = None  # Track the running process
+
+    def init_main_tab(self):
+        layout = QVBoxLayout()
+
+        # ASC MHL version display
+        self.version_label = QLabel("ASC MHL Version: Unknown")
+        self.version_label.setAlignment(Qt.AlignRight)
+        layout.addWidget(self.version_label)
+
+        # Folder selection
+        folder_layout = QHBoxLayout()
+        folder_label = QLabel("Media Folder:")
+        folder_label.setAlignment(Qt.AlignLeft)
+        folder_layout.addWidget(folder_label)
+        self.folder_label = QLabel("No folder selected.")
+        self.folder_btn = QPushButton("Select Folder")
+        self.folder_btn.clicked.connect(self.select_folder)
+        folder_layout.addWidget(self.folder_label)
+        folder_layout.addWidget(self.folder_btn)
+        layout.addLayout(folder_layout)
+
+        # Hash algorithm selection
+        hash_layout = QHBoxLayout()
+        hash_label = QLabel("Hash Algorithm:")
+        hash_label.setAlignment(Qt.AlignLeft)
+        hash_layout.addWidget(hash_label)
+        self.hash_combo = QComboBox()
+        self.hash_combo.addItems(["md5", "sha1", "sha256", "xxh64", "xxh3", "c4"])
+        self.hash_combo.setCurrentText("xxh64")
+        hash_layout.addWidget(self.hash_combo)
+        layout.addLayout(hash_layout)
+
+        # Configuration section
+        config_group = QVBoxLayout()
+        config_label = QLabel("Configuration:")
+        config_label.setAlignment(Qt.AlignLeft)
+        config_group.addWidget(config_label)
+        self.detect_renaming_checkbox = QCheckBox("Enable Detect Renaming (--detect_renaming)")
+        self.detect_renaming_checkbox.setChecked(False)
+        config_group.addWidget(self.detect_renaming_checkbox)
+        self.no_directory_hashes_checkbox = QCheckBox("Skip Directory Hashes (--no_directory_hashes)")
+        self.no_directory_hashes_checkbox.setChecked(False)
+        self.no_directory_hashes_checkbox.stateChanged.connect(self.update_no_directory_hashes_label)
+        config_group.addWidget(self.no_directory_hashes_checkbox)
+        layout.addLayout(config_group)
+
+        # Buttons
+        button_layout = QHBoxLayout()
+        self.run_btn = QPushButton("Create MHL generation")
+        self.run_btn.clicked.connect(self.run_ascmhl)
+        self.abort_btn = QPushButton("Abort")
+        self.abort_btn.setEnabled(False)
+        self.abort_btn.clicked.connect(self.abort_ascmhl)
+        self.exit_btn = QPushButton("Exit")
+        self.exit_btn.clicked.connect(self.close)
+        button_layout.addWidget(self.run_btn)
+        button_layout.addWidget(self.abort_btn)
+        button_layout.addWidget(self.exit_btn)
+        layout.addLayout(button_layout)
+
+        # Status display
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setFont(QFont("Arial", 14, QFont.Bold))
+        self.status_label.setStyleSheet("color: red;")
+        self.status_label.setText("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.")
+        layout.addWidget(self.status_label)
+
+        self.main_tab.setLayout(layout)
+
+    def init_info_tab(self):
+        layout = QFormLayout()
+
+        # Info fields
+        self.location_input = QLineEdit()
+        self.name_input = QLineEdit()
+        self.email_input = QLineEdit()
+        self.phone_input = QLineEdit()
+        self.role_input = QLineEdit()
+
+        layout.addRow("Location:", self.location_input)
+        layout.addRow("Name:", self.name_input)
+        layout.addRow("Email:", self.email_input)
+        layout.addRow("Phone:", self.phone_input)
+        layout.addRow("Role:", self.role_input)
+
+        self.info_tab.setLayout(layout)
+
+    def init_log_tab(self):
+        layout = QVBoxLayout()
+
+        # Log output
+        self.log = QTextEdit()
+        self.log.setReadOnly(True)
+        layout.addWidget(self.log)
+
+        self.log_tab.setLayout(layout)
 
     def is_ascmhl_available(self):
         try:
@@ -100,6 +161,7 @@ class ASCMHLGui(QWidget):
 
     def update_status(self, message, success=None):
         self.status_label.setText(message)
+        self.status_label.setFont(QFont("Arial", 16, QFont.Bold))  # Ensure consistent font size and style
         if success is True:  # Success
             self.status_label.setStyleSheet("color: green;")
         elif success is False:  # Error
@@ -130,10 +192,35 @@ class ASCMHLGui(QWidget):
             "-v"
         ]
 
+        # Add optional detect renaming argument
+        if self.detect_renaming_checkbox.isChecked():
+            cmd.append("--detect_renaming")  # Ensure the argument is added when the checkbox is checked
+
+        # Add optional no directory hashes argument
+        if self.no_directory_hashes_checkbox.isChecked():
+            cmd.append("--no_directory_hashes")  # Ensure the argument is added when the checkbox is checked
+
+        # Add optional info arguments
+        if self.location_input.text():
+            cmd.extend(["--location", self.location_input.text()])
+        if self.name_input.text():
+            cmd.extend(["--author_name", self.name_input.text()])
+        if self.email_input.text():
+            cmd.extend(["--author_email", self.email_input.text()])
+        if self.phone_input.text():
+            cmd.extend(["--author_phone", self.phone_input.text()])
+        if self.role_input.text():
+            cmd.extend(["--author_role", self.role_input.text()])
+
         self.log.append(f"\n🔧 Running: {' '.join(cmd)}\n")
         self.update_status("🔧 Running MHL creation...", success=None)
+
+        # Disable UI elements during processing
         self.exit_btn.setEnabled(False)
-        self.abort_btn.setEnabled(True)  # Enable Abort button
+        self.abort_btn.setEnabled(True)
+        self.info_tab.setDisabled(True)
+        self.detect_renaming_checkbox.setEnabled(False)
+        self.no_directory_hashes_checkbox.setEnabled(False)
 
         def run_command():
             try:
@@ -150,34 +237,54 @@ class ASCMHLGui(QWidget):
                     self.log.ensureCursorVisible()
                     QApplication.processEvents()
 
-                self.process.wait()
-                if self.process.returncode == 0:
-                    self.log.append("✅ MHL creation complete.")
-                    self.update_status("✅ MHL creation complete.", success=True)
+                if self.process:
+                    self.process.wait()
+                    if self.process.returncode == 0:
+                        self.log.append("✅ MHL creation complete.")
+                        self.update_status("✅ MHL creation complete.", success=True)
+                    else:
+                        self.log.append("❌ MHL creation failed.")
+                        self.update_status("❌ MHL creation failed.", success=False)
                 else:
-                    self.log.append("❌ MHL creation failed.")
-                    self.update_status("❌ MHL creation failed.", success=False)
+                    self.log.append("⚠️ Operation aborted.")
+                    self.update_status("⚠️ Operation aborted.", success="caution")
 
             except FileNotFoundError:
-                self.log.append("❌ 'ascmhl' not found. Make sure it's installed and in your system PATH.")
-                self.update_status("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.", success=False)
+                self.log.append("❌ ascmhl not found. Make sure it's installed and in your system PATH.")
+                self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
             except Exception as e:
                 self.log.append(f"❌ Error: {str(e)}")
                 self.update_status(f"❌ Error: {str(e)}", success=False)
             finally:
                 self.process = None
                 self.exit_btn.setEnabled(True)
-                self.abort_btn.setEnabled(False)  # Disable Abort button
+                self.abort_btn.setEnabled(False)
+                self.info_tab.setDisabled(False)
+                self.detect_renaming_checkbox.setEnabled(True)
+                self.no_directory_hashes_checkbox.setEnabled(True)
 
-        # Run the command in a separate thread to keep the UI responsive
+                # Display the arguments used for the job
+                args_used = "<b>Arguments Used:</b><br>"
+                args_used += f"<span style='color: blue;'>Media Folder:</span> {self.media_folder}<br>"
+                args_used += f"<span style='color: green;'>Hash Algorithm:</span> {hash_alg}<br>"
+                if self.detect_renaming_checkbox.isChecked():
+                    args_used += "<span style='color: orange;'>Detect Renaming:</span> Enabled<br>"
+                if self.no_directory_hashes_checkbox.isChecked():
+                    args_used += "<span style='color: orange;'>Skip Directory Hashes:</span> Enabled<br>"
+                if self.location_input.text():
+                    args_used += f"<span style='color: purple;'>Location:</span> {self.location_input.text()}<br>"
+                if self.name_input.text():
+                    args_used += f"<span style='color: purple;'>Name:</span> {self.name_input.text()}<br>"
+                if self.email_input.text():
+                    args_used += f"<span style='color: purple;'>Email:</span> {self.email_input.text()}<br>"
+                if self.phone_input.text():
+                    args_used += f"<span style='color: purple;'>Phone:</span> {self.phone_input.text()}<br>"
+                if self.role_input.text():
+                    args_used += f"<span style='color: purple;'>Role:</span> {self.role_input.text()}<br>"
+
+                self.log.append(args_used)
+
         threading.Thread(target=run_command, daemon=True).start()
-
-        # Auto-scroll to the bottom of the log after appending new text
-        self.log.moveCursor(self.log.textCursor().End)
-        self.log.ensureCursorVisible()
-
-        # Ensure the scroll bar follows the text in the output log
-        self.log.verticalScrollBar().setValue(self.log.verticalScrollBar().maximum())
 
     def abort_ascmhl(self):
         if self.process and self.process.poll() is None:  # Check if the process is running
@@ -187,6 +294,12 @@ class ASCMHLGui(QWidget):
             self.process = None
             self.abort_btn.setEnabled(False)  # Disable Abort button
             self.exit_btn.setEnabled(True)
+
+    def update_no_directory_hashes_label(self):
+        if self.no_directory_hashes_checkbox.isChecked():
+            self.no_directory_hashes_checkbox.setStyleSheet("color: red;")
+        else:
+            self.no_directory_hashes_checkbox.setStyleSheet("color: black;")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
