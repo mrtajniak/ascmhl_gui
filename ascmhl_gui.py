@@ -11,9 +11,13 @@ from PyQt5.QtGui import QFont
 class ASCMHLGui(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("ASCMHL Creator GUI")
-        self.resize(600, 400)
+        self.setWindowTitle("ASC MHL Creator GUI")
+        # Adjust the initial window size to make it less wide
+        self.resize(500, 400)
         self.init_ui()
+
+        # Fit the window size to the contents of the 'Create' tab and lock resizing
+        self.setFixedSize(self.sizeHint())
 
         # Check if 'ascmhl' is available
         if not self.is_ascmhl_available():
@@ -31,6 +35,7 @@ class ASCMHLGui(QWidget):
         self.main_tab = QWidget()
         self.init_main_tab()
         self.tabs.addTab(self.main_tab, "Main")
+        self.tabs.setTabText(self.tabs.indexOf(self.main_tab), "Create")
 
         # Info tab
         self.info_tab = QWidget()
@@ -144,7 +149,19 @@ class ASCMHLGui(QWidget):
         layout.addRow("Phone:", self.phone_input)
         layout.addRow("Role:", self.role_input)
 
+        # Add a clear button to the Info tab
+        self.clear_info_btn = QPushButton("Clear Info")
+        self.clear_info_btn.clicked.connect(self.clear_info_fields)
+        layout.addRow(self.clear_info_btn)
+
         self.info_tab.setLayout(layout)
+
+    def clear_info_fields(self):
+        self.location_input.clear()
+        self.name_input.clear()
+        self.email_input.clear()
+        self.phone_input.clear()
+        self.role_input.clear()
 
     def init_log_tab(self):
         layout = QVBoxLayout()
@@ -154,7 +171,15 @@ class ASCMHLGui(QWidget):
         self.log.setReadOnly(True)
         layout.addWidget(self.log)
 
+        # Add a clear button to the Log tab
+        self.clear_log_btn = QPushButton("Clear Logs")
+        self.clear_log_btn.clicked.connect(self.clear_log)
+        layout.addWidget(self.clear_log_btn)
+
         self.log_tab.setLayout(layout)
+
+    def clear_log(self):
+        self.log.clear()
 
     def is_ascmhl_available(self):
         try:
