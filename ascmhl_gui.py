@@ -17,9 +17,9 @@ class ASCMHLGui(QWidget):
 
         # Check if 'ascmhl' is available
         if not self.is_ascmhl_available():
-            self.update_status("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.")
+            self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
         else:
-            self.update_status("✅ 'ascmhl' is available.", success=True)
+            self.update_status("✅ ascmhl is available.", success=True)
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -52,7 +52,7 @@ class ASCMHLGui(QWidget):
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.status_label.setStyleSheet("color: red;")
-        self.status_label.setText("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.")
+        self.status_label.setText("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.")
 
         # Layout
         layout.addWidget(QLabel("Media Folder:"))
@@ -85,14 +85,14 @@ class ASCMHLGui(QWidget):
 
     def update_status(self, message, success=None):
         self.status_label.setText(message)
-        if success is True:
+        if success is True:  # Success
             self.status_label.setStyleSheet("color: green;")
-        elif success is False:
+        elif success is False:  # Error
             self.status_label.setStyleSheet("color: red;")
-        elif success is None:
-            self.status_label.setStyleSheet("color: black;")
-        else:
+        elif success == "caution":  # Caution
             self.status_label.setStyleSheet("color: orange;")
+        elif success is None:  # Info
+            self.status_label.setStyleSheet("color: black;")
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Media Folder")
