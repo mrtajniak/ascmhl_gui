@@ -95,7 +95,7 @@ class ASCMHLGui(QWidget):
             self.version_label.setText(f"{version}")
             return result.returncode == 0
         except (FileNotFoundError, subprocess.CalledProcessError):
-            self.version_label.setText("ASC MHL Version: Not Found")
+            self.version_label.setText("ASCMHL Not Found")
             return False
 
     def update_status(self, message, success=None):
