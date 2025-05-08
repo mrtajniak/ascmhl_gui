@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox
 )
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 
 class ASCMHLGui(QWidget):
     def __init__(self):
@@ -16,7 +17,9 @@ class ASCMHLGui(QWidget):
 
         # Check if 'ascmhl' is available
         if not self.is_ascmhl_available():
-            self.log.append("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.")
+            self.update_status("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.")
+        else:
+            self.update_status("✅ 'ascmhl' is available.", success=True)
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -35,9 +38,21 @@ class ASCMHLGui(QWidget):
         self.run_btn = QPushButton("Create ASC MHL")
         self.run_btn.clicked.connect(self.run_ascmhl)
 
+        # Exit button
+        self.exit_btn = QPushButton("Exit")
+        self.exit_btn.clicked.connect(self.close)
+        self.exit_btn.setEnabled(True)
+
         # Log output
         self.log = QTextEdit()
         self.log.setReadOnly(True)
+
+        # Status display
+        self.status_label = QLabel()
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setFont(QFont("Arial", 16, QFont.Bold))
+        self.status_label.setStyleSheet("color: red;")
+        self.status_label.setText("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.")
 
         # Layout
         layout.addWidget(QLabel("Media Folder:"))
@@ -51,11 +66,33 @@ class ASCMHLGui(QWidget):
         layout.addWidget(QLabel("Output Log:"))
         layout.addWidget(self.log)
 
+        layout.addWidget(QLabel("Status:"))
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.exit_btn)
+
         self.setLayout(layout)
 
         # State
         self.media_folder = ""
         self.output_folder = ""
+
+    def is_ascmhl_available(self):
+        try:
+            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            return False
+
+    def update_status(self, message, success=None):
+        self.status_label.setText(message)
+        if success is True:
+            self.status_label.setStyleSheet("color: green;")
+        elif success is False:
+            self.status_label.setStyleSheet("color: red;")
+        elif success is None:
+            self.status_label.setStyleSheet("color: black;")
+        else:
+            self.status_label.setStyleSheet("color: orange;")
 
     def select_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Media Folder")
@@ -63,16 +100,10 @@ class ASCMHLGui(QWidget):
             self.media_folder = folder
             self.folder_label.setText(folder)
 
-    def is_ascmhl_available(self):
-        try:
-            subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-            return True
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            return False
-
     def run_ascmhl(self):
         if not self.media_folder:
             self.log.append("⚠️ Please select a media folder.")
+            self.update_status("⚠️ Please select a media folder.", success="caution")
             return
 
         hash_alg = self.hash_combo.currentText()
@@ -85,6 +116,8 @@ class ASCMHLGui(QWidget):
         ]
 
         self.log.append(f"\n🔧 Running: {' '.join(cmd)}\n")
+        self.update_status("🔧 Running MHL creation...", success=None)
+        self.exit_btn.setEnabled(False)
 
         def run_command():
             try:
@@ -96,7 +129,6 @@ class ASCMHLGui(QWidget):
                 )
 
                 for line in process.stdout:
-                    # Append new log entries to display from top to bottom
                     self.log.append(line.strip())
                     self.log.moveCursor(self.log.textCursor().End)
                     self.log.ensureCursorVisible()
@@ -105,13 +137,19 @@ class ASCMHLGui(QWidget):
                 process.wait()
                 if process.returncode == 0:
                     self.log.append("✅ MHL creation complete.")
+                    self.update_status("✅ MHL creation complete.", success=True)
                 else:
                     self.log.append("❌ MHL creation failed.")
+                    self.update_status("❌ MHL creation failed.", success=False)
 
             except FileNotFoundError:
                 self.log.append("❌ 'ascmhl' not found. Make sure it's installed and in your system PATH.")
+                self.update_status("❌ 'ascmhl' not found. Please ensure it is installed and added to your system PATH.", success=False)
             except Exception as e:
                 self.log.append(f"❌ Error: {str(e)}")
+                self.update_status(f"❌ Error: {str(e)}", success=False)
+            finally:
+                self.exit_btn.setEnabled(True)
 
         # Run the command in a separate thread to keep the UI responsive
         threading.Thread(target=run_command, daemon=True).start()
