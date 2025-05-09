@@ -152,7 +152,7 @@ SOFTWARE.""")
 
         # Buttons
         button_layout = QHBoxLayout()
-        self.run_btn = QPushButton("Create MHL generation")
+        self.run_btn = QPushButton("Create MHL Generation")
         self.run_btn.clicked.connect(self.run_ascmhl)
         self.abort_btn = QPushButton("Abort")
         self.abort_btn.setEnabled(False)
@@ -300,6 +300,7 @@ SOFTWARE.""")
         # Disable UI elements during processing
         self.exit_btn.setEnabled(False)
         self.abort_btn.setEnabled(True)
+        self.run_btn.setEnabled(False)  # Disable the "Create MHL Generation" button during processing
         self.info_tab.setDisabled(True)
         self.detect_renaming_checkbox.setEnabled(False)
         self.no_directory_hashes_checkbox.setEnabled(False)
@@ -342,6 +343,7 @@ SOFTWARE.""")
                 self.process = None
                 self.exit_btn.setEnabled(True)
                 self.abort_btn.setEnabled(False)
+                self.run_btn.setEnabled(True)  # Re-enable the "Create MHL Generation" button
                 self.info_tab.setDisabled(False)
                 self.detect_renaming_checkbox.setEnabled(True)
                 self.no_directory_hashes_checkbox.setEnabled(True)
