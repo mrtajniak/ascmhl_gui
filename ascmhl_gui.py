@@ -304,6 +304,8 @@ SOFTWARE.""")
         self.info_tab.setDisabled(True)
         self.detect_renaming_checkbox.setEnabled(False)
         self.no_directory_hashes_checkbox.setEnabled(False)
+        self.hash_combo.setEnabled(False)  # Disable the Hash Algorithm dropdown
+        self.folder_btn.setEnabled(False)  # Disable the Select Folder button
 
         def run_command():
             try:
@@ -347,6 +349,8 @@ SOFTWARE.""")
                 self.info_tab.setDisabled(False)
                 self.detect_renaming_checkbox.setEnabled(True)
                 self.no_directory_hashes_checkbox.setEnabled(True)
+                self.hash_combo.setEnabled(True)  # Re-enable the Hash Algorithm dropdown
+                self.folder_btn.setEnabled(True)  # Re-enable the Select Folder button
                 self.status_bar.setVisible(False)  # Hide the status bar after processing
 
                 # Display the arguments used for the job
