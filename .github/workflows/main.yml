@@ -1,0 +1,47 @@
+name: Build with PyInstaller
+
+on:
+  push:
+    branches:
+      - main  # Trigger on push to the 'main' branch
+  workflow_dispatch:  # Allow manual triggering of the workflow
+
+jobs:
+  build:
+    runs-on: [self-hosted]  # Use your self-hosted runner
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'  # Set your desired Python version
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --onefile --uac-admin --noconsole ascmhl_gui.py
+
+      - name: Create a Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ github.run_number }}  # Create a unique tag for each release
+          release_name: Build v${{ github.run_number }}
+          body: |
+            Automated release for build v${{ github.run_number }}.
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/ascmhl_gui.exe  # Path to the built .exe file
+          asset_name: ascmhl_gui.exe       # Name of the file in the release
+          asset_content_type: application/octet-stream
