@@ -52,7 +52,7 @@ class ASCMHLGui(QWidget):
         version_layout = QVBoxLayout()
 
         # Add ASC MHL Creator GUI version
-        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.0")
+        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.1")
         gui_version_label.setAlignment(Qt.AlignLeft)
         gui_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(gui_version_label)
@@ -190,10 +190,26 @@ SOFTWARE.""")
         layout.addRow("Phone:", self.phone_input)
         layout.addRow("Role:", self.role_input)
 
+        # Add export and import buttons to the Info tab
+        self.export_info_btn = QPushButton("Export Info")
+        self.export_info_btn.clicked.connect(self.export_user_data)
+        layout.addRow(self.export_info_btn)
+
+        self.import_info_btn = QPushButton("Import Info")
+        self.import_info_btn.clicked.connect(self.import_user_data)
+        layout.addRow(self.import_info_btn)
+
         # Add a clear button to the Info tab
         self.clear_info_btn = QPushButton("Clear Info")
         self.clear_info_btn.clicked.connect(self.clear_info_fields)
         layout.addRow(self.clear_info_btn)
+
+        # Add a feedback label to indicate export/import status
+        self.feedback_label = QLabel()
+        self.feedback_label.setAlignment(Qt.AlignCenter)
+        self.feedback_label.setFont(QFont("Arial", 10, QFont.Bold))
+        self.feedback_label.setStyleSheet("color: green;")
+        layout.addRow(self.feedback_label)
 
         self.info_tab.setLayout(layout)
 
@@ -318,44 +334,28 @@ SOFTWARE.""")
                 )
 
                 for line in self.process.stdout:
-                    QApplication.instance().postEvent(
-                        self.log,
-                        QTextEdit.append(line.strip())
-                    )
+                    self.log.append(line.strip())  # Append to the QTextEdit instance
+                    self.log.moveCursor(self.log.textCursor().End)
+                    self.log.ensureCursorVisible()
                     QApplication.processEvents()
 
                 if self.process:
                     self.process.wait()
                     if self.process.returncode == 0:
-                        QApplication.instance().postEvent(
-                            self.log,
-                            QTextEdit.append("✅ MHL creation complete.")
-                        )
+                        self.log.append("✅ MHL creation complete.")
                         self.update_status("✅ MHL creation complete.", success=True)
                     else:
-                        QApplication.instance().postEvent(
-                            self.log,
-                            QTextEdit.append("❌ MHL creation failed.")
-                        )
+                        self.log.append("❌ MHL creation failed.")
                         self.update_status("❌ MHL creation failed.", success=False)
                 else:
-                    QApplication.instance().postEvent(
-                        self.log,
-                        QTextEdit.append("⚠️ Operation aborted.")
-                    )
+                    self.log.append("⚠️ Operation aborted.")
                     self.update_status("⚠️ Operation aborted.", success="caution")
 
             except FileNotFoundError:
-                QApplication.instance().postEvent(
-                    self.log,
-                    QTextEdit.append("❌ ascmhl not found. Make sure it's installed and in your system PATH.")
-                )
+                self.log.append("❌ ascmhl not found. Make sure it's installed and in your system PATH.")
                 self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
             except Exception as e:
-                QApplication.instance().postEvent(
-                    self.log,
-                    QTextEdit.append(f"❌ Error: {str(e)}")
-                )
+                self.log.append(f"❌ Error: {str(e)}")
                 self.update_status(f"❌ Error: {str(e)}", success=False)
             finally:
                 self.process = None
@@ -407,6 +407,61 @@ SOFTWARE.""")
             self.no_directory_hashes_checkbox.setStyleSheet("color: red;")
         else:
             self.no_directory_hashes_checkbox.setStyleSheet("color: black;")
+
+    def export_user_data(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export User Data", "identity.xml", "XML Files (*.xml)")
+        if file_path:
+            # Save data from fields into memory
+            user_data = {
+                'location': self.location_input.text(),
+                'name': self.name_input.text(),
+                'email': self.email_input.text(),
+                'phone': self.phone_input.text(),
+                'role': self.role_input.text()
+            }
+
+            # Generate XML file
+            with open(file_path, 'w') as file:
+                file.write("<userdata>\n")
+                file.write("    <user>\n")
+                for key, value in user_data.items():
+                    file.write(f"        <{key}>{value}</{key}>\n")
+                file.write("    </user>\n")
+                file.write("</userdata>\n")
+
+            # Drop data saved in memory and clear fields
+            user_data = None
+            self.clear_info_fields()
+
+            # Provide feedback
+            self.feedback_label.setText("✅ User data exported successfully.")
+
+    def import_user_data(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import User Data", "", "XML Files (*.xml)")
+        if file_path:
+            try:
+                # Load XML data into memory
+                from xml.etree import ElementTree as ET
+                tree = ET.parse(file_path)
+                root = tree.getroot()
+                user = root.find('user')
+
+                # Fill fields in Info tab
+                self.location_input.setText(user.find('location').text if user.find('location') is not None else "")
+                self.name_input.setText(user.find('name').text if user.find('name') is not None else "")
+                self.email_input.setText(user.find('email').text if user.find('email') is not None else "")
+                self.phone_input.setText(user.find('phone').text if user.find('phone') is not None else "")
+                self.role_input.setText(user.find('role').text if user.find('role') is not None else "")
+
+                # Drop XML data from memory
+                tree = None
+
+                # Provide feedback
+                self.feedback_label.setText("✅ User data imported successfully.")
+            except Exception as e:
+                self.feedback_label.setStyleSheet("color: red;")
+                self.feedback_label.setText(f"❌ Error importing user data: {str(e)}")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
