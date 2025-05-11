@@ -318,28 +318,44 @@ SOFTWARE.""")
                 )
 
                 for line in self.process.stdout:
-                    self.log.append(line.strip())
-                    self.log.moveCursor(self.log.textCursor().End)
-                    self.log.ensureCursorVisible()
+                    QApplication.instance().postEvent(
+                        self.log,
+                        QTextEdit.append(line.strip())
+                    )
                     QApplication.processEvents()
 
                 if self.process:
                     self.process.wait()
                     if self.process.returncode == 0:
-                        self.log.append("✅ MHL creation complete.")
+                        QApplication.instance().postEvent(
+                            self.log,
+                            QTextEdit.append("✅ MHL creation complete.")
+                        )
                         self.update_status("✅ MHL creation complete.", success=True)
                     else:
-                        self.log.append("❌ MHL creation failed.")
+                        QApplication.instance().postEvent(
+                            self.log,
+                            QTextEdit.append("❌ MHL creation failed.")
+                        )
                         self.update_status("❌ MHL creation failed.", success=False)
                 else:
-                    self.log.append("⚠️ Operation aborted.")
+                    QApplication.instance().postEvent(
+                        self.log,
+                        QTextEdit.append("⚠️ Operation aborted.")
+                    )
                     self.update_status("⚠️ Operation aborted.", success="caution")
 
             except FileNotFoundError:
-                self.log.append("❌ ascmhl not found. Make sure it's installed and in your system PATH.")
+                QApplication.instance().postEvent(
+                    self.log,
+                    QTextEdit.append("❌ ascmhl not found. Make sure it's installed and in your system PATH.")
+                )
                 self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
             except Exception as e:
-                self.log.append(f"❌ Error: {str(e)}")
+                QApplication.instance().postEvent(
+                    self.log,
+                    QTextEdit.append(f"❌ Error: {str(e)}")
+                )
                 self.update_status(f"❌ Error: {str(e)}", success=False)
             finally:
                 self.process = None
