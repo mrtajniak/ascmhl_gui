@@ -4,7 +4,10 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: write
 
 jobs:
   local-build:
@@ -14,22 +17,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Verify Python Installation
+      - name: Add Python to PATH
         run: |
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' --version
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip --version
+          $env:PATH += ';C:\Users\Administrator\AppData\Local\Programs\Python\Python313'
+          python --version
+          python -m pip --version
         shell: powershell
 
       - name: Install Dependencies
         run: |
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install --upgrade pip
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install -r requirements.txt
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install pyinstaller
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+        shell: powershell
+
+      - name: Run Python Script
+        run: |
+          python ascmhl_gui.py
         shell: powershell
 
       - name: Build with PyInstaller
         run: |
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
+          python -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
         shell: powershell
 
       - name: Debug Directory Contents
