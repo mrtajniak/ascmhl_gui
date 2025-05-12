@@ -1,6 +1,7 @@
 import sys
 import subprocess
 import threading
+import json
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QFileDialog,
     QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox, QProgressBar
@@ -252,9 +253,35 @@ SOFTWARE.""")
                 subprocess.run([sys.executable, "-m", "pip", "install", "ascmhl"], check=True)
                 self.log.append("✅ ASC MHL installed successfully.")
                 self.update_status("✅ ASC MHL installed successfully.", success=True)
+
+                # Update ASC MHL version label after successful installation
+                result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+                version = result.stdout.strip()
+                self.mhl_version_label.setText(f"ASC MHL Version: {version}")
             except Exception as e:
                 self.log.append(f"❌ Failed to install ASC MHL: {str(e)}")
                 self.update_status(f"❌ Failed to install ASC MHL: {str(e)}", success=False)
+
+        # Check for updates for ASC MHL
+        self.check_for_ascmhl_updates()
+
+    def check_for_ascmhl_updates(self):
+        try:
+            # Check for updates using pip
+            result = subprocess.run([sys.executable, "-m", "pip", "list", "--outdated", "--format", "json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            outdated_packages = json.loads(result.stdout)
+
+            for package in outdated_packages:
+                if package['name'] == 'ascmhl':
+                    self.log.append(f"⚠️ Update available for ASC MHL: {package['version']} -> {package['latest_version']}")
+                    self.update_status(f"⚠️ Update available for ASC MHL: {package['version']} -> {package['latest_version']}", success="caution")
+                    return
+
+            self.log.append("✅ ASC MHL is up to date.")
+            self.update_status("✅ ASC MHL is up to date.", success=True)
+        except Exception as e:
+            self.log.append(f"❌ Failed to check for updates: {str(e)}")
+            self.update_status(f"❌ Failed to check for updates: {str(e)}", success=False)
 
     def is_ascmhl_available(self):
         try:
