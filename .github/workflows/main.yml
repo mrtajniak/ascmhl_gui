@@ -2,9 +2,13 @@ name: Powershell Local Runner
 
 on:
   push:
+    branches:
+      - main # Trigger only on pushes to the main branch
     paths:
       - ascmhl_gui.py # Trigger only when this specific file changes
   pull_request:
+    branches:
+      - main # Trigger only on pull requests targeting the main branch
     paths:
       - ascmhl_gui.py # Trigger on pull requests that modify this file
   workflow_dispatch:
