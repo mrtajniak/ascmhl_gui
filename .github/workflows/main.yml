@@ -24,6 +24,7 @@ jobs:
         run: |
           & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install --upgrade pip
           & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install -r requirements.txt
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install pyinstaller
         shell: powershell
 
       - name: Build with PyInstaller
