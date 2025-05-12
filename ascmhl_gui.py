@@ -20,10 +20,7 @@ class ASCMHLGui(QWidget):
         self.setFixedSize(self.size())
 
         # Check if 'ascmhl' is available
-        if not self.is_ascmhl_available():
-            self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
-        else:
-            self.update_status("✅ ascmhl is available.", success=True)
+        self.check_and_install_ascmhl()
 
     def init_ui(self):
         # Initialize the GUI layout
@@ -237,6 +234,28 @@ SOFTWARE.""")
 
     def clear_log(self):
         self.log.clear()
+
+    def check_and_install_ascmhl(self):
+        try:
+            # Check if ascmhl is available
+            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            version = result.stdout.strip()
+            self.mhl_version_label.setText(f"ASC MHL Version: {version}")
+            self.update_status(f"✅ ASC MHL is available: {version}", success=True)
+            self.log.append(f"✅ ASC MHL is available: {version}")
+        except FileNotFoundError:
+            self.mhl_version_label.setText("ASC MHL Version: Not Found")
+            self.update_status("⚠️ ASC MHL not found. Attempting to install...", success="caution")
+            self.log.append("⚠️ ASC MHL not found. Attempting to install...")
+
+            # Attempt to install ascmhl using pip
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", "ascmhl"], check=True)
+                self.log.append("✅ ASC MHL installed successfully.")
+                self.update_status("✅ ASC MHL installed successfully.", success=True)
+            except Exception as e:
+                self.log.append(f"❌ Failed to install ASC MHL: {str(e)}")
+                self.update_status(f"❌ Failed to install ASC MHL: {str(e)}", success=False)
 
     def is_ascmhl_available(self):
         try:
