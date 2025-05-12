@@ -13,6 +13,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Install Chocolatey
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force; \
+          [System.Net.ServicePointManager]::SecurityProtocol = \
+          [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; \
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+      - name: Install Python 3.13.3
+        run: |
+          echo Installing Python 3.13.3
+          choco install python --version=3.13.3 -y
+          refreshenv
+
       - name: Verify Python and Pip
         run: |
           python --version
