@@ -14,28 +14,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Add Python to PATH
+      - name: Verify Python Installation
         run: |
-          $env:PATH += ';C:\Users\Administrator\AppData\Local\Programs\Python\Python313'
-          [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [System.EnvironmentVariableTarget]::Process)
-          python --version
-          python -m pip --version
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' --version
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip --version
         shell: powershell
 
       - name: Install Dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install --upgrade pip
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install -r requirements.txt
         shell: powershell
 
       - name: Run Python Script
         run: |
-          python ascmhl_gui.py
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' ascmhl_gui.py
         shell: powershell
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --onefile --uac-admin --noconsole ascmhl_gui.py
+          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
         shell: powershell
 
       - name: Debug Directory Contents
