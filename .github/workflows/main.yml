@@ -2,9 +2,12 @@ name: Powershell Local Runner
 
 on:
   push:
-    branches:
-      - main
+    paths:
+      - ascmhl_gui.py # Trigger only when this specific file changes
   pull_request:
+    paths:
+      - ascmhl_gui.py # Trigger on pull requests that modify this file
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -55,7 +58,7 @@ jobs:
         uses: actions/create-release@v1
         with:
           tag_name: v${{ env.VERSION }}
-          release_name: AutoBuild v${{ env.VERSION }}
+          release_name: 'ASC MHL Creator GUI v${{ env.VERSION }} (AutoBuild)'
           body: |
             Automated release for build v${{ env.VERSION }}.
           draft: false
