@@ -30,11 +30,6 @@ jobs:
           python -m pip install -r requirements.txt
         shell: powershell
 
-      - name: Run Python Script
-        run: |
-          python ascmhl_gui.py
-        shell: powershell
-
       - name: Build with PyInstaller
         run: |
           python -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
