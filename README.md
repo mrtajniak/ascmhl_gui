@@ -7,7 +7,7 @@ Key Features:
 - Author Information: Optionally embed detailed author metadata to maintain traceability and accountability.
 - Identity Export/Import: Define and export/import identity profiles including name, email, role, phone number, and location, streamlining repeat use and ensuring consistency across projects.
 
-Whether you’re a DIT, editor, or archivist, ASC MHL Creator GUI provides a clean and intuitive interface for professional-grade MHL generation without the need to interact with command-line tools.
+Whether you’re a Digital Imaging Technician, editor, or archivist, ASC MHL Creator GUI provides a clean and intuitive interface for professional-grade MHL generation without the need to interact with command-line tools.
 
 ## Requierments
 1. Python 3.13 or later
