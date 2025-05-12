@@ -244,11 +244,10 @@ SOFTWARE.""")
             self.update_status(f"✅ ASC MHL is available: {version}", success=True)
             self.log.append(f"✅ ASC MHL is available: {version}")
         except FileNotFoundError:
+            # Install ascmhl using pip if not found
             self.mhl_version_label.setText("ASC MHL Version: Not Found")
             self.update_status("⚠️ ASC MHL not found. Attempting to install...", success="caution")
             self.log.append("⚠️ ASC MHL not found. Attempting to install...")
-
-            # Attempt to install ascmhl using pip
             try:
                 subprocess.run([sys.executable, "-m", "pip", "install", "ascmhl"], check=True)
                 self.log.append("✅ ASC MHL installed successfully.")
