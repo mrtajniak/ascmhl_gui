@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - ascmhl_gui.py # Trigger on pull requests that modify this file
+  workflow_dispatch:
 
 permissions:
   contents: write
