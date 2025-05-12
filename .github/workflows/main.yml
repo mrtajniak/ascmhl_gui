@@ -1,56 +1,45 @@
-name: Build with PyInstaller
+name: Powershell Local Runner
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # Trigger on push to the 'main' branch
+  workflow_dispatch:  # Allow manual triggering of the workflow
 
 jobs:
-  build:
-    runs-on: [self-hosted]
+  local-build:
+    runs-on: [self-hosted]  # Use your self-hosted runner
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Install Chocolatey
+      - name: Verify Python Installation
         run: |
-          Start-Process powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "& {
-            Set-ExecutionPolicy Bypass -Scope Process -Force;
-            [System.Net.ServicePointManager]::SecurityProtocol =
-            [System.Net.ServicePointManager]::SecurityProtocol -bor 3072;
-            iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-          }"' -Wait
+          python --version
+          python -m pip --version
+        shell: pwsh
 
-      - name: Install Python 3.13.3
+      - name: Install Dependencies
         run: |
-          Start-Process powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "& {
-            echo Installing Python 3.13.3;
-            choco install python --version=3.13.3 -y;
-            refreshenv
-          }"' -Wait
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+        shell: pwsh
 
-      - name: Verify Python and Pip
+      - name: Run Python Script
         run: |
-          Start-Process powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "& {
-            python --version;
-            python -m pip --version
-          }"' -Wait
-
-      - name: Install dependencies
-        run: |
-          Start-Process powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "& {
-            python -m pip install --upgrade pip;
-            python -m pip install -r requirements.txt;
-            python -m pip install pyinstaller
-          }"' -Wait
+          python ascmhl_gui.py
+        shell: pwsh
 
       - name: Build with PyInstaller
         run: |
-          Start-Process powershell -Verb runAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command "& {
-            pyinstaller --onefile --uac-admin --noconsole ascmhl_gui.py
-          }"' -Wait
+          pyinstaller --onefile --uac-admin --noconsole ascmhl_gui.py
+        shell: pwsh
+
+      - name: Debug Directory Contents
+        run: |
+          Get-ChildItem -Path . -Recurse
+        shell: pwsh
 
       - name: Create a Release
         id: create_release
