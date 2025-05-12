@@ -26,11 +26,6 @@ jobs:
           & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m pip install -r requirements.txt
         shell: powershell
 
-      - name: Run Python Script
-        run: |
-          & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' ascmhl_gui.py
-        shell: powershell
-
       - name: Build with PyInstaller
         run: |
           & 'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\python.exe' -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
