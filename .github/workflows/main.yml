@@ -98,7 +98,7 @@ jobs:
         shell: powershell
 
       - name: Use Extracted Version
-        run: echo "Version extracted: ${{ env.VERSION }}"
+        run: echo "Version extracted:${{ env.VERSION }}"
 
       - name: Create a Release
         id: create_release
