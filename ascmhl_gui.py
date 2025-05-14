@@ -214,7 +214,7 @@ SOFTWARE.""")
         # Add a feedback label to indicate export/import status
         self.feedback_label = QLabel()
         self.feedback_label.setAlignment(Qt.AlignCenter)
-        self.feedback_label.setFont(QFont("Arial", 10, QFont.Bold))
+        self.feedback_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.feedback_label.setStyleSheet("color: green;")
         layout.addRow(self.feedback_label)
 
