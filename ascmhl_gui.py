@@ -53,7 +53,7 @@ class ASCMHLGui(QWidget):
         version_layout = QVBoxLayout()
 
         # Add ASC MHL Creator GUI version
-        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.1")
+        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2")
         gui_version_label.setAlignment(Qt.AlignLeft)
         gui_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(gui_version_label)
