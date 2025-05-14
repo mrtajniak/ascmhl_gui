@@ -13,7 +13,7 @@ permissions:
   contents: write
 
 env:
-  SHARED_WORKSPACE: C:\actions-runner\Shared # Define the shared directory
+  SHARED_WORKSPACE: C:\actions-runner\_work\ascmhl_gui\ascmhl_gui\ascmhl_gui # Define the shared directory
 
 jobs:
   Setup:
