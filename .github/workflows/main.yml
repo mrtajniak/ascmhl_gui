@@ -2,23 +2,44 @@ name: Powershell Local Runner
 
 on:
   push:
+    branches:
+      - main # Trigger only on pushes to the main branch
     paths:
       - ascmhl_gui.py # Trigger only when this specific file changes
-  pull_request:
-    paths:
-      - ascmhl_gui.py # Trigger on pull requests that modify this file
+      
   workflow_dispatch:
 
 permissions:
   contents: write
 
-jobs:
-  local-build:
-    runs-on: [self-hosted]
+env:
+  SHARED_WORKSPACE: ./ # Define the shared directory
 
+jobs:
+  Setup:
+    runs-on: [self-hosted]
+    outputs:
+      shared_workspace: ${{ env.SHARED_WORKSPACE }}
     steps:
-      - name: Checkout Code
+      - name: Prepare Shared Workspace
+        run: |
+          if (-Not (Test-Path $env:SHARED_WORKSPACE)) {
+            New-Item -ItemType Directory -Path $env:SHARED_WORKSPACE
+          }
+        shell: powershell
+
+      - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          path: ${{ env.SHARED_WORKSPACE }}
+
+  Check:
+    runs-on: [self-hosted]
+    needs: Setup
+    steps:
+      - name: Prepare Environment
+        run: cd ${{ env.SHARED_WORKSPACE }}
+        shell: powershell
 
       - name: Add Python to PATH
         run: |
@@ -29,23 +50,49 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          cd ${{ env.SHARED_WORKSPACE }}
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
         shell: powershell
 
+      - name: Validate Script
+        run: |
+          cd ${{ env.SHARED_WORKSPACE }}
+          python -m py_compile ascmhl_gui.py
+        shell: powershell
+
+  Build:
+    runs-on: [self-hosted]
+    needs: Check
+    steps:
+      - name: Prepare Environment
+        run: cd ${{ env.SHARED_WORKSPACE }}
+        shell: powershell
+
       - name: Build with PyInstaller
         run: |
+          cd ${{ env.SHARED_WORKSPACE }}
           python -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
         shell: powershell
 
       - name: Debug Directory Contents
         run: |
+          cd ${{ env.SHARED_WORKSPACE }}
           Get-ChildItem -Path . -Recurse
+        shell: powershell
+
+  Release:
+    runs-on: [self-hosted]
+    needs: Build
+    steps:
+      - name: Prepare Environment
+        run: cd ${{ env.SHARED_WORKSPACE }}
         shell: powershell
 
       - name: Extract Version from Script
         id: extract_version
         run: |
+          cd ${{ env.SHARED_WORKSPACE }}
           $VERSION = (Get-Content ascmhl_gui.py | Select-String -Pattern 'GUI Version: (\d+\.\d+)' | ForEach-Object { $_.Matches.Groups[1].Value })
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
         shell: powershell
@@ -70,8 +117,23 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/ascmhl_gui.exe
+          asset_path: ${{ env.SHARED_WORKSPACE }}\dist\ascmhl_gui.exe
           asset_name: ascmhl_gui.exe
           asset_content_type: application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  CleanUp:
+    runs-on: [self-hosted]
+    needs: Release
+    steps:
+      - name: Full Cleanup with Git
+        run: |
+          cd ${{ env.SHARED_WORKSPACE }}
+          if (Test-Path ".git") {
+            git reset --hard
+            git clean -fdx
+          } else {
+            Write-Host "No .git directory found in $SHARED_WORKSPACE"
+          }
+        shell: powershell
