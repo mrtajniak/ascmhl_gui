@@ -6,7 +6,9 @@ on:
       - main # Trigger only on pushes to the main branch
     paths:
       - ascmhl_gui.py # Trigger only when this specific file changes
-
+      
+  workflow_dispatch:
+  
 permissions:
   contents: write
 
