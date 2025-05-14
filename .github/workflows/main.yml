@@ -130,6 +130,10 @@ jobs:
       - name: Full Cleanup with Git
         run: |
           cd ${{ env.SHARED_WORKSPACE }}
-          git reset --hard
-          git clean -fdx
+          if (Test-Path ".git") {
+            git reset --hard
+            git clean -fdx
+          } else {
+            Write-Host "No .git directory found in $SHARED_WORKSPACE"
+          }
         shell: powershell
