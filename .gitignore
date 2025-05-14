@@ -5,3 +5,6 @@
 build/
 dist/
 *.spec
+
+# Exclude changelog files
+CHANGELOG*.md

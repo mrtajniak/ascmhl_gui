@@ -1,11 +1,12 @@
 import sys
 import subprocess
 import threading
+import json
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QFileDialog,
     QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox, QProgressBar
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import QFont
 
 class ASCMHLGui(QWidget):
@@ -19,11 +20,11 @@ class ASCMHLGui(QWidget):
         # Lock the window size to prevent resizing
         self.setFixedSize(self.size())
 
-        # Check if 'ascmhl' is available
-        if not self.is_ascmhl_available():
-            self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
-        else:
-            self.update_status("✅ ascmhl is available.", success=True)
+        # Show the window immediately
+        self.show()
+
+        # Run the ASC MHL check and installation logic in a separate thread to prevent freezing
+        threading.Thread(target=self.check_and_install_ascmhl, daemon=True).start()
 
     def init_ui(self):
         # Initialize the GUI layout
@@ -52,7 +53,7 @@ class ASCMHLGui(QWidget):
         version_layout = QVBoxLayout()
 
         # Add ASC MHL Creator GUI version
-        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.1")
+        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2")
         gui_version_label.setAlignment(Qt.AlignLeft)
         gui_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(gui_version_label)
@@ -88,6 +89,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""")
         version_layout.addWidget(license_content)
+
+        # Add an Update button for ASC MHL version
+        self.update_ascmhl_btn = QPushButton("Update ASC MHL")
+        self.update_ascmhl_btn.setVisible(False)  # Initially hidden
+        self.update_ascmhl_btn.clicked.connect(self.update_ascmhl)
+        version_layout.addWidget(self.update_ascmhl_btn)
 
         self.version_tab.setLayout(version_layout)
         self.tabs.addTab(self.version_tab, "Version")
@@ -167,9 +174,9 @@ SOFTWARE.""")
         # Status display
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
-        self.status_label.setFont(QFont("Arial", 14, QFont.Bold))
-        self.status_label.setStyleSheet("color: red;")
-        self.status_label.setText("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.")
+        self.status_label.setFont(QFont("Arial", 16, QFont.Bold))
+        self.status_label.setStyleSheet("color: black;")
+        self.status_label.setText("🔄 Checking ASC MHL availability...")
         layout.addWidget(self.status_label)
 
         self.main_tab.setLayout(layout)
@@ -207,7 +214,7 @@ SOFTWARE.""")
         # Add a feedback label to indicate export/import status
         self.feedback_label = QLabel()
         self.feedback_label.setAlignment(Qt.AlignCenter)
-        self.feedback_label.setFont(QFont("Arial", 10, QFont.Bold))
+        self.feedback_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.feedback_label.setStyleSheet("color: green;")
         layout.addRow(self.feedback_label)
 
@@ -237,6 +244,64 @@ SOFTWARE.""")
 
     def clear_log(self):
         self.log.clear()
+
+    def check_and_install_ascmhl(self):
+        try:
+            # Check if ascmhl is available
+            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            version = result.stdout.strip()
+            self.mhl_version_label.setText(f"ASC MHL Version: {version}")
+            self.update_status(f"✅ ASC MHL is available: {version}", success=True)
+            self.log.append(f"✅ ASC MHL is available: {version}")
+        except FileNotFoundError:
+            # Install ascmhl using pip if not found
+            self.mhl_version_label.setText("ASC MHL Version: Not Found")
+            # Update the status label dynamically based on the log messages
+            self.update_status("⚠️ ASC MHL not found. Attempting to install...", success="caution")
+            self.log.append("⚠️ ASC MHL not found. Attempting to install...")
+
+            try:
+                subprocess.run([sys.executable, "-m", "pip", "install", "ascmhl"], check=True)
+                self.update_status("✅ ASC MHL installed successfully.", success=True)
+                self.log.append("✅ ASC MHL installed successfully.")
+
+                # Check availability again after installation
+                self.update_status("🔄 Checking ASC MHL availability...", success=None)
+                self.log.append("🔄 Checking ASC MHL availability...")
+
+                result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+                version = result.stdout.strip()
+                self.update_status(f"✅ ASC MHL is available: {version}", success=True)
+                self.log.append(f"✅ ASC MHL is available: {version}")
+
+                # Check for updates
+                self.update_status("✅ ASC MHL is up to date.", success=True)
+                self.log.append("✅ ASC MHL is up to date.")
+            except Exception as e:
+                self.update_status(f"❌ Failed to install ASC MHL: {str(e)}", success=False)
+                self.log.append(f"❌ Failed to install ASC MHL: {str(e)}")
+
+        # Check for updates for ASC MHL
+        self.check_for_ascmhl_updates()
+
+    def check_for_ascmhl_updates(self):
+        try:
+            # Check for updates using pip
+            result = subprocess.run([sys.executable, "-m", "pip", "list", "--outdated", "--format", "json"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            outdated_packages = json.loads(result.stdout)
+
+            for package in outdated_packages:
+                if package['name'] == 'ascmhl':
+                    self.log.append(f"⚠️ Update available for ASC MHL: {package['version']} -> {package['latest_version']}")
+                    self.update_status(f"⚠️ Update available for ASC MHL: {package['version']} -> {package['latest_version']}", success="caution")
+                    self.update_ascmhl_btn.setVisible(True)  # Show the update button
+                    return
+
+            self.log.append("✅ ASC MHL is up to date.")
+            self.update_status("✅ ASC MHL is up to date.", success=True)
+        except Exception as e:
+            self.log.append(f"❌ Failed to check for updates: {str(e)}")
+            self.update_status(f"❌ Failed to check for updates: {str(e)}", success=False)
 
     def is_ascmhl_available(self):
         try:
@@ -461,6 +526,23 @@ SOFTWARE.""")
             except Exception as e:
                 self.feedback_label.setStyleSheet("color: red;")
                 self.feedback_label.setText(f"❌ Error importing user data: {str(e)}")
+
+    def update_ascmhl(self):
+        try:
+            self.log.append("🔄 Updating ASC MHL...")
+            self.update_status("🔄 Updating ASC MHL...", success=None)
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "ascmhl"], check=True)
+            self.log.append("✅ ASC MHL updated successfully.")
+            self.update_status("✅ ASC MHL updated successfully.", success=True)
+
+            # Refresh the version label
+            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+            version = result.stdout.strip()
+            self.mhl_version_label.setText(f"ASC MHL Version: {version}")
+            self.update_ascmhl_btn.setVisible(False)  # Hide the button after update
+        except Exception as e:
+            self.log.append(f"❌ Failed to update ASC MHL: {str(e)}")
+            self.update_status(f"❌ Failed to update ASC MHL: {str(e)}", success=False)
 
 
 if __name__ == "__main__":
