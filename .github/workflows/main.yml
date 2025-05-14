@@ -11,9 +11,8 @@ permissions:
   contents: write
 
 jobs:
-  local-build:
+  Check:
     runs-on: [self-hosted]
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -30,7 +29,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
         shell: powershell
-
+  Build:
+    runs-on: [self-hosted]
+    steps:
       - name: Build with PyInstaller
         run: |
           python -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
@@ -50,7 +51,9 @@ jobs:
 
       - name: Use Extracted Version
         run: echo "Version extracted:${{ env.VERSION }}"
-
+  Release:
+    runs-on: [self-hosted]
+    steps:
       - name: Create a Release
         id: create_release
         uses: actions/create-release@v1
@@ -73,3 +76,10 @@ jobs:
           asset_content_type: application/octet-stream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CleanUp:
+    runs-on: [self-hosted]
+    steps:
+      - name: Clean up
+        id: cleanup
+        run: git reset --hard | git clean -fdx
+        shell: powershell
