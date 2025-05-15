@@ -135,5 +135,6 @@ jobs:
             git clean -fdx
           } else {
             Write-Host "No .git directory found in $SHARED_WORKSPACE"
+            Remove-Item -Path ".\*" -Force -Recurse
           }
         shell: powershell
