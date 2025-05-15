@@ -55,7 +55,7 @@ class ASCMHLGui(QWidget):
         version_layout = QVBoxLayout()
 
         # Add ASC MHL Creator GUI version
-        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2")
+        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2.1")
         gui_version_label.setAlignment(Qt.AlignLeft)
         gui_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(gui_version_label)
@@ -364,9 +364,9 @@ SOFTWARE.""")
 
     def update_status(self, message, success=None):
         # Dynamically adjust font size based on message length
-        if len(message) > 80:
+        if len(message) > 100:
             font_size = 10
-        elif len(message) > 40:
+        elif len(message) > 60:
             font_size = 13
         else:
             font_size = 16
