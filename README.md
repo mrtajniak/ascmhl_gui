@@ -20,5 +20,6 @@ Whether you’re a Digital Imaging Technician, editor, or archivist, ASC MHL Cre
 4. Run `ASCMHLCreatorGUI.exe`
 5. Enjoy easy MHL creation with simple GUI
 
-## Compilation: 
-[![Powershell Local Runner](https://github.com/mrtajniak/ascmhl_gui/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/mrtajniak/ascmhl_gui/actions/workflows/main.yml)
+## Compliance: 
+[![Build](https://github.com/mrtajniak/ascmhl_gui/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/mrtajniak/ascmhl_gui/actions/workflows/main.yml)
+[![CodeQL](https://github.com/mrtajniak/ascmhl_gui/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/mrtajniak/ascmhl_gui/actions/workflows/github-code-scanning/codeql)
