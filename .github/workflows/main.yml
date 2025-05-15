@@ -93,7 +93,7 @@ jobs:
         id: extract_version
         run: |
           cd ${{ env.SHARED_WORKSPACE }}
-          $VERSION = (Get-Content ascmhl_gui.py | Select-String -Pattern 'GUI Version: (\d+\.\d+)' | ForEach-Object { $_.Matches.Groups[1].Value })
+          $VERSION = (Get-Content ascmhl_gui.py | Select-String -Pattern 'GUI Version: (\d+\.\d+.\d+)' | ForEach-Object { $_.Matches.Groups[1].Value })
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
         shell: powershell
 
