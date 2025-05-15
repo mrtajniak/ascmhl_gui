@@ -72,7 +72,7 @@ jobs:
       - name: Build with PyInstaller
         run: |
           cd ${{ env.SHARED_WORKSPACE }}
-          python -m PyInstaller --onefile --uac-admin --noconsole ascmhl_gui.py
+          python -m PyInstaller --onefile --uac-admin --windowed ascmhl_gui.py
         shell: powershell
 
       - name: Debug Directory Contents
