@@ -8,3 +8,7 @@ dist/
 
 # Exclude changelog files
 CHANGELOG*.md
+
+# Exclude Visual Studio debug files
+.vs/
+*.spec file)
