@@ -2,14 +2,47 @@ import sys
 import subprocess
 import threading
 import json
+import traceback
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QFileDialog,
     QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox, QProgressBar, QMessageBox
 )
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 import webbrowser
 import site
+
+# --- GLOBAL EXCEPTION HANDLER FOR STABILITY ---
+def excepthook(type, value, tb):
+    msg = "".join(traceback.format_exception(type, value, tb))
+    QMessageBox.critical(None, "Unexpected Error", f"An unexpected error occurred:\n{msg}")
+    sys.exit(1)
+sys.excepthook = excepthook
+
+# --- QTHREAD FOR RESPONSIVE LONG TASKS ---
+class WorkerThread(QThread):
+    output = pyqtSignal(str)
+    finished = pyqtSignal(int)
+    def __init__(self, cmd):
+        super().__init__()
+        self.cmd = cmd
+        self.process = None
+
+    def run(self):
+        try:
+            self.process = subprocess.Popen(
+                self.cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            for line in self.process.stdout:
+                self.output.emit(line.strip())
+            self.process.wait()
+            self.finished.emit(self.process.returncode)
+        except Exception as e:
+            self.output.emit(f"❌ Error: {str(e)}")
+            self.finished.emit(-1)
 
 class ASCMHLGui(QWidget):
     def __init__(self):
@@ -444,81 +477,67 @@ SOFTWARE.""")
         self.hash_combo.setEnabled(False)  # Disable the Hash Algorithm dropdown
         self.folder_btn.setEnabled(False)  # Disable the Select Folder button
 
-        def run_command():
-            try:
-                self.status_bar.setVisible(True)  # Show the status bar during processing
-                self.process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    text=True
-                )
+        # --- Ensure progress bar is visible during ASC MHL creation ---
+        self.status_bar.setVisible(True)
 
-                for line in self.process.stdout:
-                    self.log.append(line.strip())  # Append to the QTextEdit instance
-                    self.log.moveCursor(self.log.textCursor().End)
-                    self.log.ensureCursorVisible()
-                    QApplication.processEvents()
+        def handle_output(line):
+            self.log.append(line.strip())
+            self.log.moveCursor(self.log.textCursor().End)
+            self.log.ensureCursorVisible()
+            QApplication.processEvents()
 
-                if self.process:
-                    self.process.wait()
-                    if self.process.returncode == 0:
-                        self.log.append("✅ MHL creation complete.")
-                        self.update_status("✅ MHL creation complete.", success=True)
-                    else:
-                        self.log.append("❌ MHL creation failed.")
-                        self.update_status("❌ MHL creation failed.", success=False)
-                else:
-                    self.log.append("⚠️ Operation aborted.")
-                    self.update_status("⚠️ Operation aborted.", success="caution")
+        def handle_finished(returncode):
+            if returncode == 0:
+                self.log.append("✅ MHL creation complete.")
+                self.update_status("✅ MHL creation complete.", success=True)
+            elif returncode == -1:
+                self.log.append("❌ Error occurred during MHL creation.")
+                self.update_status("❌ Error occurred during MHL creation.", success=False)
+            else:
+                self.log.append("❌ MHL creation failed.")
+                self.update_status("❌ MHL creation failed.", success=False)
 
-            except FileNotFoundError:
-                self.log.append("❌ ascmhl not found. Make sure it's installed and in your system PATH.")
-                self.update_status("❌ ascmhl not found. Please ensure it is installed and added to your system PATH.", success=False)
-            except Exception as e:
-                self.log.append(f"❌ Error: {str(e)}")
-                self.update_status(f"❌ Error: {str(e)}", success=False)
-            finally:
-                self.process = None
-                self.exit_btn.setEnabled(True)
-                self.abort_btn.setEnabled(False)
-                self.run_btn.setEnabled(True)  # Re-enable the "Create MHL Generation" button
-                self.info_tab.setDisabled(False)
-                self.detect_renaming_checkbox.setEnabled(True)
-                self.no_directory_hashes_checkbox.setEnabled(True)
-                self.hash_combo.setEnabled(True)  # Re-enable the Hash Algorithm dropdown
-                self.folder_btn.setEnabled(True)  # Re-enable the Select Folder button
-                self.status_bar.setVisible(False)  # Hide the status bar after processing
+            self.exit_btn.setEnabled(True)
+            self.abort_btn.setEnabled(False)
+            self.run_btn.setEnabled(True)  # Re-enable the "Create MHL Generation" button
+            self.info_tab.setDisabled(False)
+            self.detect_renaming_checkbox.setEnabled(True)
+            self.no_directory_hashes_checkbox.setEnabled(True)
+            self.hash_combo.setEnabled(True)  # Re-enable the Hash Algorithm dropdown
+            self.folder_btn.setEnabled(True)  # Re-enable the Select Folder button
+            self.status_bar.setVisible(False)  # Hide the status bar after processing
 
-                # Display the arguments used for the job
-                args_used = "<b>Arguments Used:</b><br>"
-                args_used += f"<span style='color: blue;'>Media Folder:</span> {self.media_folder}<br>"
-                args_used += f"<span style='color: green;'>Hash Algorithm:</span> {hash_alg}<br>"
-                if self.detect_renaming_checkbox.isChecked():
-                    args_used += "<span style='color: orange;'>Detect Renaming:</span> Enabled<br>"
-                if self.no_directory_hashes_checkbox.isChecked():
-                    args_used += "<span style='color: orange;'>Skip Directory Hashes:</span> Enabled<br>"
-                if location:
-                    args_used += f"<span style='color: purple;'>Location:</span> {location}<br>"
-                if name:
-                    args_used += f"<span style='color: purple;'>Name:</span> {name}<br>"
-                if email:
-                    args_used += f"<span style='color: purple;'>Email:</span> {email}<br>"
-                if phone:
-                    args_used += f"<span style='color: purple;'>Phone:</span> {phone}<br>"
-                if role:
-                    args_used += f"<span style='color: purple;'>Role:</span> {role}<br>"
+            # Display the arguments used for the job
+            args_used = "<b>Arguments Used:</b><br>"
+            args_used += f"<span style='color: blue;'>Media Folder:</span> {self.media_folder}<br>"
+            args_used += f"<span style='color: green;'>Hash Algorithm:</span> {hash_alg}<br>"
+            if self.detect_renaming_checkbox.isChecked():
+                args_used += "<span style='color: orange;'>Detect Renaming:</span> Enabled<br>"
+            if self.no_directory_hashes_checkbox.isChecked():
+                args_used += "<span style='color: orange;'>Skip Directory Hashes:</span> Enabled<br>"
+            if location:
+                args_used += f"<span style='color: purple;'>Location:</span> {location}<br>"
+            if name:
+                args_used += f"<span style='color: purple;'>Name:</span> {name}<br>"
+            if email:
+                args_used += f"<span style='color: purple;'>Email:</span> {email}<br>"
+            if phone:
+                args_used += f"<span style='color: purple;'>Phone:</span> {phone}<br>"
+            if role:
+                args_used += f"<span style='color: purple;'>Role:</span> {role}<br>"
 
-                self.log.append(args_used)
+            self.log.append(args_used)
 
-        threading.Thread(target=run_command, daemon=True).start()
+        self.worker_thread = WorkerThread(cmd)
+        self.worker_thread.output.connect(handle_output)
+        self.worker_thread.finished.connect(handle_finished)
+        self.worker_thread.start()
 
     def abort_ascmhl(self):
-        if self.process and self.process.poll() is None:  # Check if the process is running
-            self.process.terminate()
+        if self.worker_thread and self.worker_thread.isRunning():
+            self.worker_thread.terminate()
             self.log.append("⚠️ MHL creation aborted.")
             self.update_status("⚠️ MHL creation aborted.", success="caution")
-            self.process = None
             self.abort_btn.setEnabled(False)  # Disable Abort button
             self.exit_btn.setEnabled(True)
             self.status_bar.setVisible(False)  # Hide the status bar
