@@ -3,6 +3,7 @@ import subprocess
 import threading
 import json
 import traceback
+import os
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QFileDialog,
     QVBoxLayout, QHBoxLayout, QTextEdit, QComboBox, QTabWidget, QLineEdit, QFormLayout, QCheckBox, QProgressBar, QMessageBox
@@ -23,6 +24,8 @@ sys.excepthook = excepthook
 class WorkerThread(QThread):
     output = pyqtSignal(str)
     finished = pyqtSignal(int)
+    progress = pyqtSignal(int)  # New: for progress feedback
+
     def __init__(self, cmd):
         super().__init__()
         self.cmd = cmd
@@ -36,70 +39,70 @@ class WorkerThread(QThread):
                 stderr=subprocess.STDOUT,
                 text=True
             )
+            full_output = []
             for line in self.process.stdout:
-                self.output.emit(line.strip())
+                line = line.strip()
+                full_output.append(line)
+                self.output.emit(line)
+                # Progress feedback: look for "Progress: XX%" in output
+                if "progress" in line.lower():
+                    import re
+                    match = re.search(r'(\d{1,3})\s*%', line)
+                    if match:
+                        percent = int(match.group(1))
+                        self.progress.emit(percent)
             self.process.wait()
+            # Emit all output at the end if process failed
+            if self.process.returncode != 0:
+                self.output.emit("❌ Process failed. Full output below:")
+                for l in full_output:
+                    self.output.emit(l)
             self.finished.emit(self.process.returncode)
+        except FileNotFoundError as e:
+            self.output.emit("❌ ascmhl not found or not in PATH. Please check installation.")
+            self.finished.emit(-1)
         except Exception as e:
-            self.output.emit(f"❌ Error: {str(e)}")
+            import traceback
+            self.output.emit(f"❌ Error: {str(e)}\n{traceback.format_exc()}")
             self.finished.emit(-1)
 
 class ASCMHLGui(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("ASC MHL Creator GUI")
-        # Adjust the initial window size to make it even less wide
-        self.resize(600, 320)  # Set a fixed width and height for the window
+        self.resize(600, 380)
         self.init_ui()
-
-        # Lock the window size to prevent resizing
         self.setFixedSize(self.size())
-
-        # Show the window immediately
+        self.setAcceptDrops(True)  # Enable drag & drop for the window
         self.show()
-
-        # Run the ASC MHL check and installation logic in a separate thread to prevent freezing
         threading.Thread(target=self.check_and_install_ascmhl, daemon=True).start()
 
     def init_ui(self):
-        # Initialize the GUI layout
         layout = QVBoxLayout()
-
-        # Create a tab widget for organizing tabs
         self.tabs = QTabWidget()
 
-        # Main tab
         self.main_tab = QWidget()
         self.init_main_tab()
         self.tabs.addTab(self.main_tab, "Create")
 
-        # Info tab
         self.info_tab = QWidget()
         self.init_info_tab()
         self.tabs.addTab(self.info_tab, "Info")
 
-        # Log tab
         self.log_tab = QWidget()
         self.init_log_tab()
         self.tabs.addTab(self.log_tab, "Logs")
 
-        # Add a Version tab
         self.version_tab = QWidget()
         version_layout = QVBoxLayout()
-
-        # Add ASC MHL Creator GUI version
         gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2.1")
         gui_version_label.setAlignment(Qt.AlignLeft)
         gui_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(gui_version_label)
-
-        # Add ASC MHL version
         self.mhl_version_label = QLabel("ASC MHL Version: Unknown")
         self.mhl_version_label.setAlignment(Qt.AlignLeft)
         self.mhl_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(self.mhl_version_label)
-
-        # Add LICENSE content
         license_content = QTextEdit()
         license_content.setReadOnly(True)
         license_content.setText("""MIT License
@@ -124,33 +127,30 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.""")
         version_layout.addWidget(license_content)
-
-        # Add an Update button for ASC MHL version
         self.update_ascmhl_btn = QPushButton("Update ASC MHL")
-        self.update_ascmhl_btn.setVisible(False)  # Initially hidden
+        self.update_ascmhl_btn.setVisible(False)
         self.update_ascmhl_btn.clicked.connect(self.update_ascmhl)
         version_layout.addWidget(self.update_ascmhl_btn)
+
+        # Help/About button
+        self.help_btn = QPushButton("Help / About")
+        self.help_btn.clicked.connect(self.show_help_dialog)
+        version_layout.addWidget(self.help_btn)
 
         self.version_tab.setLayout(version_layout)
         self.tabs.addTab(self.version_tab, "Version")
 
-        # Add tabs to the main layout
         layout.addWidget(self.tabs)
-
-        # Add a progress bar for activity indication
         self.status_bar = QProgressBar()
-        self.status_bar.setRange(0, 0)  # Indeterminate mode
+        self.status_bar.setRange(0, 0)
         self.status_bar.setAlignment(Qt.AlignCenter)
-        self.status_bar.setVisible(False)  # Initially hidden
+        self.status_bar.setVisible(False)
         layout.addWidget(self.status_bar)
-
-        # Set the main layout for the GUI
         self.setLayout(layout)
 
-        # Initialize state variables
         self.media_folder = ""
         self.output_folder = ""
-        self.process = None  # Track the running process
+        self.process = None
 
     def init_main_tab(self):
         layout = QVBoxLayout()
@@ -161,11 +161,16 @@ SOFTWARE.""")
         folder_label.setAlignment(Qt.AlignLeft)
         folder_layout.addWidget(folder_label)
         self.folder_label = QLabel("No folder selected.")
+        self.folder_label.setAcceptDrops(True)
+        self.folder_label.setStyleSheet("background: #f0f0f0;")
+        folder_layout.addWidget(self.folder_label)
         self.folder_btn = QPushButton("Select Folder")
         self.folder_btn.clicked.connect(self.select_folder)
-        folder_layout.addWidget(self.folder_label)
         folder_layout.addWidget(self.folder_btn)
         layout.addLayout(folder_layout)
+
+        # Drag & drop support for folder label
+        self.folder_label.installEventFilter(self)
 
         # Hash algorithm selection
         hash_layout = QHBoxLayout()
@@ -192,7 +197,6 @@ SOFTWARE.""")
         config_group.addWidget(self.no_directory_hashes_checkbox)
         layout.addLayout(config_group)
 
-        # Buttons
         button_layout = QHBoxLayout()
         self.run_btn = QPushButton("Create MHL Generation")
         self.run_btn.clicked.connect(self.run_ascmhl)
@@ -206,7 +210,6 @@ SOFTWARE.""")
         button_layout.addWidget(self.exit_btn)
         layout.addLayout(button_layout)
 
-        # Status display
         self.status_label = QLabel()
         self.status_label.setAlignment(Qt.AlignCenter)
         self.status_label.setFont(QFont("Arial", 16, QFont.Bold))
@@ -216,61 +219,120 @@ SOFTWARE.""")
 
         self.main_tab.setLayout(layout)
 
+    # Drag & drop event filter for folder label and main window
+    def eventFilter(self, obj, event):
+        if obj == self.folder_label:
+            if event.type() == event.DragEnter:
+                if event.mimeData().hasUrls():
+                    event.accept()
+                    return True
+            elif event.type() == event.Drop:
+                urls = event.mimeData().urls()
+                if urls:
+                    path = urls[0].toLocalFile()
+                    if os.path.isdir(path):
+                        self.media_folder = path
+                        self.folder_label.setText(path)
+                        return True
+        return super().eventFilter(obj, event)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.accept()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        urls = event.mimeData().urls()
+        if urls:
+            path = urls[0].toLocalFile()
+            if os.path.isdir(path):
+                self.media_folder = path
+                self.folder_label.setText(path)
+
     def init_info_tab(self):
         layout = QFormLayout()
-
-        # Info fields
         self.location_input = QLineEdit()
         self.name_input = QLineEdit()
         self.email_input = QLineEdit()
         self.phone_input = QLineEdit()
         self.role_input = QLineEdit()
-
         layout.addRow("Location:", self.location_input)
         layout.addRow("Name:", self.name_input)
         layout.addRow("Email:", self.email_input)
         layout.addRow("Phone:", self.phone_input)
         layout.addRow("Role:", self.role_input)
 
-        # Add export and import buttons to the Info tab
-        self.export_info_btn = QPushButton("Export Info")
+        self.export_info_btn = QPushButton("Export Info (XML)")
         self.export_info_btn.clicked.connect(self.export_user_data)
         layout.addRow(self.export_info_btn)
 
-        self.import_info_btn = QPushButton("Import Info")
+        self.import_info_btn = QPushButton("Import Info (XML)")
         self.import_info_btn.clicked.connect(self.import_user_data)
         layout.addRow(self.import_info_btn)
 
-        # Add a clear button to the Info tab
+        # JSON export/import
+        self.export_info_json_btn = QPushButton("Export Info (JSON)")
+        self.export_info_json_btn.clicked.connect(self.export_user_data_json)
+        layout.addRow(self.export_info_json_btn)
+
+        self.import_info_json_btn = QPushButton("Import Info (JSON)")
+        self.import_info_json_btn.clicked.connect(self.import_user_data_json)
+        layout.addRow(self.import_info_json_btn)
+
         self.clear_info_btn = QPushButton("Clear Info")
         self.clear_info_btn.clicked.connect(self.clear_info_fields)
         layout.addRow(self.clear_info_btn)
 
-        # Add a feedback label to indicate export/import status
         self.feedback_label = QLabel()
         self.feedback_label.setAlignment(Qt.AlignCenter)
         self.feedback_label.setFont(QFont("Arial", 16, QFont.Bold))
         self.feedback_label.setStyleSheet("color: green;")
         layout.addRow(self.feedback_label)
-
         self.info_tab.setLayout(layout)
 
     def clear_info_fields(self):
+        """Clear all Info tab input fields."""
         self.location_input.clear()
         self.name_input.clear()
         self.email_input.clear()
         self.phone_input.clear()
         self.role_input.clear()
 
+    def export_user_data_json(self):
+        file_path, _ = QFileDialog.getSaveFileName(self, "Export User Data", "identity.json", "JSON Files (*.json)")
+        if file_path:
+            user_data = {
+                'location': self.location_input.text(),
+                'name': self.name_input.text(),
+                'email': self.email_input.text(),
+                'phone': self.phone_input.text(),
+                'role': self.role_input.text()
+            }
+            with open(file_path, 'w') as file:
+                json.dump(user_data, file, indent=4)
+            self.clear_info_fields()
+            self.feedback_label.setText("✅ User data exported to JSON.")
+
+    def import_user_data_json(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "Import User Data", "", "JSON Files (*.json)")
+        if file_path:
+            with open(file_path, 'r') as file:
+                user_data = json.load(file)
+            self.location_input.setText(user_data.get('location', ''))
+            self.name_input.setText(user_data.get('name', ''))
+            self.email_input.setText(user_data.get('email', ''))
+            self.phone_input.setText(user_data.get('phone', ''))
+            self.role_input.setText(user_data.get('role', ''))
+            self.feedback_label.setText("✅ User data imported from JSON.")
+
     def init_log_tab(self):
         layout = QVBoxLayout()
 
-        # Log output
         self.log = QTextEdit()
         self.log.setReadOnly(True)
         layout.addWidget(self.log)
 
-        # Add a clear button to the Log tab
         self.clear_log_btn = QPushButton("Clear Logs")
         self.clear_log_btn.clicked.connect(self.clear_log)
         layout.addWidget(self.clear_log_btn)
@@ -282,19 +344,16 @@ SOFTWARE.""")
 
     def check_and_install_ascmhl(self):
         try:
-            # Check if ascmhl is available
             result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
             version = result.stdout.strip()
             self.mhl_version_label.setText(f"ASC MHL Version: {version}")
             self.update_status(f"✅ ASC MHL is available: {version}", success=True)
             self.log.append(f"✅ ASC MHL is available: {version}")
         except FileNotFoundError:
-            # Install ascmhl using pip module if not found
             self.mhl_version_label.setText("ASC MHL Version: Not Found")
             self.update_status("⚠️ ASC MHL not found. Attempting to install...", success="caution")
             self.log.append("⚠️ ASC MHL not found. Attempting to install...")
             self.install_or_update_ascmhl(upgrade=False)
-            # After install, check again
             import shutil
             ascmhl_path = shutil.which("ascmhl")
             if not ascmhl_path:
@@ -314,7 +373,6 @@ SOFTWARE.""")
                 self.mhl_version_label.setText(f"ASC MHL Version: {version}")
                 self.update_status(f"✅ ASC MHL is available: {version}", success=True)
                 self.log.append(f"✅ ASC MHL is available: {version}")
-                # Set installed_version for update check
                 installed_version = version.split('version')[-1].strip() if 'version' in version else version
             except Exception as e:
                 self.update_status(f"❌ Failed to verify ASC MHL after install: {str(e)}", success=False)
@@ -322,7 +380,6 @@ SOFTWARE.""")
                 installed_version = None
         else:
             installed_version = version.split('version')[-1].strip() if 'version' in version else version
-        # Check for updates for ASC MHL
         self.check_for_ascmhl_updates(installed_version=installed_version)
 
     def install_or_update_ascmhl(self, upgrade=False):
@@ -333,7 +390,6 @@ SOFTWARE.""")
                 f"Please open a terminal and run:\n\n{command}\n\n"
                 "You can also visit the ASC MHL PyPI page for more info."
             )
-            # Only interact with clipboard and QMessageBox if QApplication instance exists and in main thread
             app = QApplication.instance()
             from PyQt5.QtCore import QThread
             if app and QThread.currentThread() == app.thread():
@@ -354,13 +410,11 @@ SOFTWARE.""")
             import pkg_resources
             import urllib.request
             import json as _json
-            # Get the currently installed version if not provided
             if installed_version is None:
                 try:
                     installed_version = pkg_resources.get_distribution('ascmhl').version
                 except Exception:
                     installed_version = None
-            # Get the latest version from PyPI
             try:
                 with urllib.request.urlopen('https://pypi.org/pypi/ascmhl/json') as response:
                     data = _json.load(response)
@@ -376,7 +430,7 @@ SOFTWARE.""")
             elif installed_version != latest_version:
                 self.log.append(f"⚠️ Update available for ASC MHL: {installed_version} -> {latest_version}")
                 self.update_status(f"⚠️ Update available for ASC MHL: {installed_version} -> {latest_version}", success="caution")
-                self.update_ascmhl_btn.setVisible(True)  # Show the update button
+                self.update_ascmhl_btn.setVisible(True)
                 return
             else:
                 self.log.append("✅ ASC MHL is up to date.")
@@ -396,7 +450,6 @@ SOFTWARE.""")
             return False
 
     def update_status(self, message, success=None):
-        # Dynamically adjust font size based on message length
         if len(message) > 100:
             font_size = 10
         elif len(message) > 60:
@@ -405,13 +458,13 @@ SOFTWARE.""")
             font_size = 16
         self.status_label.setText(message)
         self.status_label.setFont(QFont("Arial", font_size, QFont.Bold))
-        if success is True:  # Success
+        if success is True:
             self.status_label.setStyleSheet("color: green;")
-        elif success is False:  # Error
+        elif success is False:
             self.status_label.setStyleSheet("color: red;")
-        elif success == "caution":  # Caution
+        elif success == "caution":
             self.status_label.setStyleSheet("color: orange;")
-        elif success is None:  # Info
+        elif success is None:
             self.status_label.setStyleSheet("color: black;")
 
     def select_folder(self):
@@ -426,6 +479,14 @@ SOFTWARE.""")
             self.update_status("⚠️ Please select a media folder.", success="caution")
             return
 
+        # Check if ascmhl is available before running
+        try:
+            result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
+        except Exception as e:
+            self.log.append("❌ ascmhl not found or not working. Please check installation and PATH.")
+            self.update_status("❌ ascmhl not found or not working. Please check installation and PATH.", success=False)
+            return
+
         hash_alg = self.hash_combo.currentText()
         cmd = [
             "ascmhl",
@@ -435,15 +496,11 @@ SOFTWARE.""")
             "-v"
         ]
 
-        # Add optional detect renaming argument
         if self.detect_renaming_checkbox.isChecked():
-            cmd.append("--detect_renaming")  # Ensure the argument is added when the checkbox is checked
-
-        # Add optional no directory hashes argument
+            cmd.append("--detect_renaming")
         if self.no_directory_hashes_checkbox.isChecked():
-            cmd.append("--no_directory_hashes")  # Ensure the argument is added when the checkbox is checked
+            cmd.append("--no_directory_hashes")
 
-        # Adjust input fields to avoid double wrapping in quotes
         def get_safe_input(input_field):
             return input_field.text().strip() if input_field.text().strip() else None
 
@@ -467,47 +524,49 @@ SOFTWARE.""")
         self.log.append(f"\n🔧 Running: {' '.join(cmd)}\n")
         self.update_status("🔧 Running MHL creation...", success=None)
 
-        # Disable UI elements during processing
         self.exit_btn.setEnabled(False)
         self.abort_btn.setEnabled(True)
-        self.run_btn.setEnabled(False)  # Disable the "Create MHL Generation" button during processing
+        self.run_btn.setEnabled(False)
         self.info_tab.setDisabled(True)
         self.detect_renaming_checkbox.setEnabled(False)
         self.no_directory_hashes_checkbox.setEnabled(False)
-        self.hash_combo.setEnabled(False)  # Disable the Hash Algorithm dropdown
-        self.folder_btn.setEnabled(False)  # Disable the Select Folder button
-
-        # --- Ensure progress bar is visible during ASC MHL creation ---
+        self.hash_combo.setEnabled(False)
+        self.folder_btn.setEnabled(False)
         self.status_bar.setVisible(True)
+        self.status_bar.setRange(0, 0)
 
         def handle_output(line):
-            self.log.append(line.strip())
+            self.log.append(line)
             self.log.moveCursor(self.log.textCursor().End)
             self.log.ensureCursorVisible()
             QApplication.processEvents()
 
+        def handle_progress(percent):
+            self.status_bar.setRange(0, 100)
+            self.status_bar.setValue(percent)
+
         def handle_finished(returncode):
+            self.status_bar.setRange(0, 0)
+            self.status_bar.setVisible(False)
             if returncode == 0:
                 self.log.append("✅ MHL creation complete.")
                 self.update_status("✅ MHL creation complete.", success=True)
             elif returncode == -1:
-                self.log.append("❌ Error occurred during MHL creation.")
+                self.log.append("❌ Error occurred during MHL creation. See log above for details.")
                 self.update_status("❌ Error occurred during MHL creation.", success=False)
             else:
-                self.log.append("❌ MHL creation failed.")
-                self.update_status("❌ MHL creation failed.", success=False)
+                self.log.append(f"❌ MHL creation failed with exit code {returncode}. See log above for details.")
+                self.update_status(f"❌ MHL creation failed (exit code {returncode}).", success=False)
 
             self.exit_btn.setEnabled(True)
             self.abort_btn.setEnabled(False)
-            self.run_btn.setEnabled(True)  # Re-enable the "Create MHL Generation" button
+            self.run_btn.setEnabled(True)
             self.info_tab.setDisabled(False)
             self.detect_renaming_checkbox.setEnabled(True)
             self.no_directory_hashes_checkbox.setEnabled(True)
-            self.hash_combo.setEnabled(True)  # Re-enable the Hash Algorithm dropdown
-            self.folder_btn.setEnabled(True)  # Re-enable the Select Folder button
-            self.status_bar.setVisible(False)  # Hide the status bar after processing
+            self.hash_combo.setEnabled(True)
+            self.folder_btn.setEnabled(True)
 
-            # Display the arguments used for the job
             args_used = "<b>Arguments Used:</b><br>"
             args_used += f"<span style='color: blue;'>Media Folder:</span> {self.media_folder}<br>"
             args_used += f"<span style='color: green;'>Hash Algorithm:</span> {hash_alg}<br>"
@@ -531,6 +590,7 @@ SOFTWARE.""")
         self.worker_thread = WorkerThread(cmd)
         self.worker_thread.output.connect(handle_output)
         self.worker_thread.finished.connect(handle_finished)
+        self.worker_thread.progress.connect(handle_progress)
         self.worker_thread.start()
 
     def abort_ascmhl(self):
@@ -538,9 +598,9 @@ SOFTWARE.""")
             self.worker_thread.terminate()
             self.log.append("⚠️ MHL creation aborted.")
             self.update_status("⚠️ MHL creation aborted.", success="caution")
-            self.abort_btn.setEnabled(False)  # Disable Abort button
+            self.abort_btn.setEnabled(False)
             self.exit_btn.setEnabled(True)
-            self.status_bar.setVisible(False)  # Hide the status bar
+            self.status_bar.setVisible(False)
 
     def update_no_directory_hashes_label(self):
         if self.no_directory_hashes_checkbox.isChecked():
@@ -551,7 +611,6 @@ SOFTWARE.""")
     def export_user_data(self):
         file_path, _ = QFileDialog.getSaveFileName(self, "Export User Data", "identity.xml", "XML Files (*.xml)")
         if file_path:
-            # Save data from fields into memory
             user_data = {
                 'location': self.location_input.text(),
                 'name': self.name_input.text(),
@@ -559,8 +618,6 @@ SOFTWARE.""")
                 'phone': self.phone_input.text(),
                 'role': self.role_input.text()
             }
-
-            # Generate XML file
             with open(file_path, 'w') as file:
                 file.write("<userdata>\n")
                 file.write("    <user>\n")
@@ -568,35 +625,24 @@ SOFTWARE.""")
                     file.write(f"        <{key}>{value}</{key}>\n")
                 file.write("    </user>\n")
                 file.write("</userdata>\n")
-
-            # Drop data saved in memory and clear fields
             user_data = None
             self.clear_info_fields()
-
-            # Provide feedback
             self.feedback_label.setText("✅ User data exported successfully.")
 
     def import_user_data(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Import User Data", "", "XML Files (*.xml)")
         if file_path:
             try:
-                # Load XML data into memory
                 from xml.etree import ElementTree as ET
                 tree = ET.parse(file_path)
                 root = tree.getroot()
                 user = root.find('user')
-
-                # Fill fields in Info tab
                 self.location_input.setText(user.find('location').text if user.find('location') is not None else "")
                 self.name_input.setText(user.find('name').text if user.find('name') is not None else "")
                 self.email_input.setText(user.find('email').text if user.find('email') is not None else "")
                 self.phone_input.setText(user.find('phone').text if user.find('phone') is not None else "")
                 self.role_input.setText(user.find('role').text if user.find('role') is not None else "")
-
-                # Drop XML data from memory
                 tree = None
-
-                # Provide feedback
                 self.feedback_label.setText("✅ User data imported successfully.")
             except Exception as e:
                 self.feedback_label.setStyleSheet("color: red;")
@@ -607,19 +653,36 @@ SOFTWARE.""")
             self.log.append("🔄 Updating ASC MHL...")
             self.update_status("🔄 Updating ASC MHL...", success=None)
             self.install_or_update_ascmhl(upgrade=True)
-            # Refresh the version label
             result = subprocess.run(["ascmhl", "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, text=True)
             version = result.stdout.strip()
             self.mhl_version_label.setText(f"ASC MHL Version: {version}")
-            self.update_ascmhl_btn.setVisible(False)  # Hide the button after update
+            self.update_ascmhl_btn.setVisible(False)
         except Exception as e:
             self.log.append(f"❌ Failed to update ASC MHL: {str(e)}")
             self.update_status(f"❌ Failed to update ASC MHL: {str(e)}", success=False)
 
+    def show_help_dialog(self):
+        QMessageBox.information(
+            self,
+            "Help / About",
+            (
+                "<b>ASC MHL Creator GUI</b><br><br>"
+                "Version: 1.2.1<br>"
+                "Author: Krystian<br><br>"
+                "<b>Usage:</b><br>"
+                "- Select or drag & drop a media folder.<br>"
+                "- Choose hash algorithm and options.<br>"
+                "- Fill in Info tab if needed.<br>"
+                "- Click 'Create MHL Generation' to start.<br>"
+                "- Progress will be shown below.<br><br>"
+                "You can import/export user info as XML or JSON.<br><br>"
+                "For more info, visit: <a href='https://pypi.org/project/ascmhl/'>ASC MHL PyPI</a>"
+            )
+        )
 
 if __name__ == "__main__":
     import multiprocessing
-    multiprocessing.freeze_support()  # Prevents PyInstaller recursion on Windows
+    multiprocessing.freeze_support()
     app = QApplication(sys.argv)
     gui = ASCMHLGui()
     gui.show()
