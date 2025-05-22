@@ -95,7 +95,7 @@ class ASCMHLGui(QWidget):
 
         self.version_tab = QWidget()
         version_layout = QVBoxLayout()
-        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2.1")
+        gui_version_label = QLabel("ASC MHL Creator GUI Version: 1.2.2")
         gui_version_label.setAlignment(Qt.AlignLeft)
         gui_version_label.setFont(QFont("Arial", 8))
         version_layout.addWidget(gui_version_label)
@@ -667,7 +667,7 @@ SOFTWARE.""")
             "Help / About",
             (
                 "<b>ASC MHL Creator GUI</b><br><br>"
-                "Version: 1.2.1<br>"
+                "Version: 1.2.2<br>"
                 "Author: Krystian<br><br>"
                 "<b>Usage:</b><br>"
                 "- Select or drag & drop a media folder.<br>"
