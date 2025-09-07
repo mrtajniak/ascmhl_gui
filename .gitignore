@@ -12,3 +12,6 @@ CHANGELOG*.md
 # Exclude Visual Studio debug files
 .vs/
 *.spec file)
+
+# Additional ignores
+ascmhl_gui_with_auth.py
