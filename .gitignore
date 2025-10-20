@@ -15,3 +15,4 @@ CHANGELOG*.md
 
 # Additional ignores
 ascmhl_gui_with_auth.py
+.continue/
